@@ -29,9 +29,10 @@
     <!-- Error -->
     <div
       v-if="error"
-      class="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700 font-semibold"
+      class="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700 font-semibold flex items-center gap-2"
     >
-      ⚠️ {{ error }}
+      <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      {{ error }}
     </div>
 
     <!-- Loading skeleton -->
@@ -51,7 +52,11 @@
       v-else-if="!loading && !jobs.length && !error"
       class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center"
     >
-      <div class="text-5xl mb-3">📭</div>
+      <div class="flex justify-center mb-3">
+        <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+        </svg>
+      </div>
       <h3 class="text-base font-bold text-slate-700">No jobs yet</h3>
       <p class="text-sm text-slate-400 mt-1">Process your first audio file on the Home page.</p>
       <router-link
@@ -84,9 +89,13 @@
               </span>
               <span class="text-sm font-bold text-slate-800 font-mono">{{ job.folder_name }}</span>
             </div>
-            <p v-if="job.file_name" class="text-xs text-slate-500 mt-1">📁 {{ job.file_name }}</p>
-            <p v-if="job.created_at" class="text-xs text-slate-400 mt-0.5">
-              🕐 {{ formatDate(job.created_at) }}
+            <p v-if="job.file_name" class="text-xs text-slate-500 mt-1 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+              {{ job.file_name }}
+            </p>
+            <p v-if="job.created_at" class="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {{ formatDate(job.created_at) }}
             </p>
           </div>
           <svg
@@ -118,13 +127,17 @@
             <!-- Transcription -->
             <div v-if="jobDetails[job.folder_name].transcript" class="space-y-1.5">
               <div class="flex items-center justify-between">
-                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide">📄 Transcript</h4>
+                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  Transcript
+                </h4>
                 <a
                   :href="getDownloadUrl(job.folder_name, 'transcript')"
                   download
-                  class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition"
+                  class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
                 >
-                  ⬇ Download
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  Download
                 </a>
               </div>
               <div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed max-h-32 overflow-y-auto">
@@ -135,13 +148,17 @@
             <!-- Summary -->
             <div v-if="jobDetails[job.folder_name].summary" class="space-y-1.5">
               <div class="flex items-center justify-between">
-                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide">📝 Summary</h4>
+                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10"/></svg>
+                  Summary
+                </h4>
                 <a
                   :href="getDownloadUrl(job.folder_name, 'summary')"
                   download
-                  class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition"
+                  class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
                 >
-                  ⬇ Download
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  Download
                 </a>
               </div>
               <div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed max-h-32 overflow-y-auto">
@@ -154,7 +171,10 @@
               v-if="jobDetails[job.folder_name].keywords?.length"
               class="space-y-1.5"
             >
-              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide">🔑 Keywords</h4>
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                Keywords
+              </h4>
               <div class="flex flex-wrap gap-1.5">
                 <span
                   v-for="kw in jobDetails[job.folder_name].keywords"
@@ -166,7 +186,10 @@
 
             <!-- Artifacts downloads -->
             <div class="space-y-1.5">
-              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide">📥 Artifacts</h4>
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Artifacts
+              </h4>
               <div class="flex flex-wrap gap-2">
                 <a
                   v-for="artifact in artifactList"
@@ -175,7 +198,6 @@
                   download
                   class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
                 >
-                  <span>{{ artifact.icon }}</span>
                   {{ artifact.label }}
                 </a>
               </div>
@@ -201,10 +223,10 @@ const expandedJobs = reactive(new Set())
 const jobDetails = reactive({})
 
 const artifactList = [
-  { file: 'transcript', label: 'Transcript', icon: '📄' },
-  { file: 'summary', label: 'Summary', icon: '📝' },
-  { file: 'mindmap_svg', label: 'Mind Map SVG', icon: '🧠' },
-  { file: 'mindmap_html', label: 'Mind Map HTML', icon: '🌐' }
+  { file: 'transcript', label: 'Transcript' },
+  { file: 'summary', label: 'Summary' },
+  { file: 'mindmap_svg', label: 'Mind Map SVG' },
+  { file: 'mindmap_html', label: 'Mind Map HTML' }
 ]
 
 const statusClass = (status) => {

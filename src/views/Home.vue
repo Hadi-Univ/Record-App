@@ -26,7 +26,11 @@
       v-if="pipeline.lastError"
       class="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3"
     >
-      <span class="text-red-500 text-xl">⚠️</span>
+      <span class="text-red-500 flex-shrink-0 mt-0.5">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+      </span>
       <div class="flex-1">
         <p class="text-sm font-semibold text-red-700">Pipeline Error</p>
         <p class="text-xs text-red-600 mt-1 font-mono break-all">{{ pipeline.lastError }}</p>
@@ -63,13 +67,19 @@
           @change="onFileChange"
         />
         <div v-if="!selectedFile">
-          <div class="text-4xl mb-2">🎵</div>
+          <div class="flex justify-center mb-2">
+            <svg class="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+            </svg>
+          </div>
           <p class="text-sm font-semibold text-slate-700">Drop your audio file here</p>
           <p class="text-xs text-slate-400 mt-1">or click to browse</p>
           <p class="text-xs text-slate-400 mt-2">Supports MP3, WAV, M4A, OGG, FLAC, MP4...</p>
         </div>
         <div v-else class="flex items-center justify-center gap-3">
-          <span class="text-2xl">🎵</span>
+          <svg class="w-6 h-6 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+          </svg>
           <div class="text-left">
             <p class="text-sm font-semibold text-slate-800">{{ selectedFile.name }}</p>
             <p class="text-xs text-slate-400">{{ formatSize(selectedFile.size) }}</p>
@@ -94,7 +104,13 @@
           </svg>
           Uploading &amp; Transcribing…
         </span>
-        <span v-else>🚀 Start Pipeline</span>
+        <span v-else class="flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Start Pipeline
+        </span>
       </button>
     </div>
 
@@ -119,7 +135,9 @@
       <!-- Step 2: Summarize -->
       <div v-if="pipeline.currentStep === 2" class="space-y-4">
         <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-          <p class="text-xs text-emerald-700 font-semibold">✓ Transcription complete</p>
+          <p class="text-xs text-emerald-700 font-semibold flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            Transcription complete</p>
           <p v-if="pipeline.results.transcription" class="text-xs text-emerald-600 mt-1 line-clamp-3">
             {{ pipeline.results.transcription }}
           </p>
@@ -136,14 +154,21 @@
             </svg>
             Summarizing…
           </span>
-          <span v-else>📝 Run Summarize</span>
+          <span v-else class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Run Summarize
+          </span>
         </button>
       </div>
 
       <!-- Step 3: Visualize -->
       <div v-if="pipeline.currentStep === 3" class="space-y-4">
         <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-          <p class="text-xs text-emerald-700 font-semibold">✓ Summarization complete</p>
+          <p class="text-xs text-emerald-700 font-semibold flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            Summarization complete</p>
           <p v-if="pipeline.results.summary" class="text-xs text-emerald-600 mt-1 line-clamp-3">
             {{ pipeline.results.summary }}
           </p>
@@ -160,7 +185,12 @@
             </svg>
             Visualizing…
           </span>
-          <span v-else>📊 Run Visualize</span>
+          <span v-else class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+            </svg>
+            Run Visualize
+          </span>
         </button>
       </div>
     </div>
@@ -186,14 +216,18 @@
       <!-- Transcription result -->
       <div v-if="pipeline.results.transcription" class="space-y-2">
         <div class="flex items-center justify-between">
-          <h3 class="text-sm font-bold text-slate-700">📄 Transcription</h3>
+          <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Transcription
+          </h3>
           <a
             v-if="pipeline.folderName"
             :href="downloadUrl('transcript')"
             download
-            class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition"
+            class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
           >
-            ⬇ Download
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download
           </a>
         </div>
         <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed max-h-48 overflow-y-auto">
@@ -204,14 +238,18 @@
       <!-- Summary result -->
       <div v-if="pipeline.results.summary" class="space-y-2">
         <div class="flex items-center justify-between">
-          <h3 class="text-sm font-bold text-slate-700">📝 Summary</h3>
+          <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10"/></svg>
+            Summary
+          </h3>
           <a
             v-if="pipeline.folderName"
             :href="downloadUrl('summary')"
             download
-            class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition"
+            class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
           >
-            ⬇ Download
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download
           </a>
         </div>
         <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed max-h-48 overflow-y-auto">
@@ -222,23 +260,28 @@
       <!-- Visualization result -->
       <div v-if="pipeline.results.mindmap_svg || pipeline.results.mindmap_html" class="space-y-2">
         <div class="flex items-center justify-between">
-          <h3 class="text-sm font-bold text-slate-700">🧠 Mind Map</h3>
+          <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Mind Map
+          </h3>
           <div class="flex gap-3">
             <a
               v-if="pipeline.folderName"
               :href="downloadUrl('mindmap_svg')"
               download
-              class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition"
+              class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
-              ⬇ SVG
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              SVG
             </a>
             <a
               v-if="pipeline.folderName"
               :href="downloadUrl('mindmap_html')"
               download
-              class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition"
+              class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
-              ⬇ HTML
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              HTML
             </a>
           </div>
         </div>
@@ -251,7 +294,10 @@
 
       <!-- Keywords / Key Points -->
       <div v-if="pipeline.results.keywords && pipeline.results.keywords.length" class="space-y-2">
-        <h3 class="text-sm font-bold text-slate-700">🔑 Key Points</h3>
+        <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+          Key Points
+        </h3>
         <div class="flex flex-wrap gap-2">
           <span
             v-for="kw in pipeline.results.keywords"

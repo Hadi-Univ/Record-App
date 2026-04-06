@@ -88,7 +88,7 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
-        {{ testing ? 'Testing…' : '🔌 Test Connection' }}
+        {{ testing ? 'Testing…' : 'Test Connection' }}
       </button>
 
       <div
@@ -98,7 +98,12 @@
           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
           : 'bg-red-50 text-red-700 border border-red-200'"
       >
-        <span>{{ connectionStatus.ok ? '✅' : '❌' }}</span>
+        <span v-if="connectionStatus.ok">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </span>
+        <span v-else>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </span>
         <span>{{ connectionStatus.message }}</span>
       </div>
     </div>
@@ -130,8 +135,9 @@
     </div>
 
     <!-- Auto-save note -->
-    <p class="text-xs text-slate-400 text-center pb-2">
-      ✓ Settings are saved automatically to your device.
+    <p class="text-xs text-slate-400 text-center pb-2 flex items-center justify-center gap-1">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+      Settings are saved automatically to your device.
     </p>
   </div>
 </template>
