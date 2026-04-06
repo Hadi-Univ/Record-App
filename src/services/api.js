@@ -30,11 +30,12 @@ export async function uploadAndTranscribe(file) {
  * POST /api/v1/summarize
  */
 export async function summarizeJob(folderName) {
-  const url = store.getAuthUrl('/api/v1/summarize')
+  const url = `${store.getBaseUrl()}/api/v1/summarize`
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      google_token:store.state.token,
       folder_name: folderName,
       provider: store.state.settings.provider,
       model: store.state.settings.model || undefined,
@@ -55,11 +56,12 @@ export async function summarizeJob(folderName) {
  * POST /api/v1/visualize
  */
 export async function visualizeJob(folderName) {
-  const url = store.getAuthUrl('/api/v1/visualize')
+  const url = `${store.getBaseUrl()}/api/v1/visualize`
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      google_token:store.state.token,
       folder_name: folderName,
       provider: store.state.settings.provider,
       model: store.state.settings.model || undefined,
