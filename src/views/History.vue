@@ -80,7 +80,7 @@
                 class="px-2 py-0.5 rounded-md text-xs font-bold"
                 :class="statusClass(job.status)"
               >
-                {{ (job.status || 'unknown').toUpperCase() }}
+                {{ displayStatus(job.status) }}
               </span>
               <span class="text-sm font-bold text-slate-800 font-mono">{{ job.folder_name }}</span>
             </div>
@@ -216,7 +216,18 @@ const statusClass = (status) => {
     running: 'bg-indigo-100 text-indigo-700',
     processing: 'bg-indigo-100 text-indigo-700'
   }
-  return map[status?.toLowerCase()] || 'bg-slate-100 text-slate-600'
+  const normalized =
+    typeof status === 'string' ? status
+      : status?.visualize || status?.summarize || status?.transcribe || 'unknown'
+  return map[String(normalized).toLowerCase()] || 'bg-slate-100 text-slate-600'
+}
+
+const displayStatus = (status) => {
+  const normalized =
+    typeof status === 'string'
+      ? status
+      : status?.visualize || status?.summarize || status?.transcribe || 'unknown'
+  return String(normalized).toUpperCase()
 }
 
 const formatDate = (dateStr) => {
