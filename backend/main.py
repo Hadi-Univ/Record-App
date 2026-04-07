@@ -81,6 +81,17 @@ def _safe_join(base: str, *paths: str) -> str:
     return final
 
 
+def _sanitize_name(value: str, label: str = "name") -> str:
+    """
+    Reject path components that contain separators, null bytes, or are
+    obviously dangerous.  This provides explicit sanitization so that
+    user-controlled values are safe before they reach any file-system call.
+    """
+    if not value or any(c in value for c in ("/", "\\", "\0", "..")):
+        raise HTTPException(status_code=400, detail=f"Invalid {label}.")
+    return value
+
+
 def _now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -452,30 +463,32 @@ async def summarize_audio(req: SummarizeRequest):
     """
     try:
         user_id = _resolve_user(req.google_token)
+        folder_name = _sanitize_name(req.folder_name, "folder_name")
+        file_name = _sanitize_name(req.file_name, "file_name")
 
-        job_dir = _safe_join(BASE_DIR, user_id, req.folder_name)
+        job_dir = _safe_join(BASE_DIR, user_id, folder_name)
         manifest = _read_manifest(job_dir)
 
-        out_txt = os.path.join(job_dir, f"{req.file_name}.txt")
+        out_txt = os.path.join(job_dir, f"{file_name}.txt")
         if not os.path.exists(out_txt):
             raise HTTPException(
                 status_code=404,
                 detail="Transcript not found. Run transcription first.",
             )
 
-        print(f"\n[INFO] Summarizing {req.file_name} using {req.provider}...")
+        print(f"\n[INFO] Summarizing {file_name} using {req.provider}...")
         llm = make_provider(req.provider, model=req.model, api_key=req.api_key)
         transcript = load_transcript(out_txt)
         chunk_summaries, final_summary, json_summary = summarize_pipeline(llm, transcript)
-        save_results(req.file_name, job_dir, chunk_summaries, final_summary, json_summary)
+        save_results(file_name, job_dir, chunk_summaries, final_summary, json_summary)
 
-        summary_txt_name = f"{req.file_name}_final_summary.txt"
-        summary_html_name = f"{req.file_name}_final_summary.html"
+        summary_txt_name = f"{file_name}_final_summary.txt"
+        summary_html_name = f"{file_name}_final_summary.html"
 
         with open(os.path.join(job_dir, summary_txt_name), "w", encoding="utf-8") as f:
             f.write(final_summary)
         with open(os.path.join(job_dir, summary_html_name), "w", encoding="utf-8") as f:
-            f.write(_summary_to_html(f"{req.file_name} – Final Summary", final_summary))
+            f.write(_summary_to_html(f"{file_name} – Final Summary", final_summary))
 
         manifest["provider"] = req.provider
         manifest["model"] = req.model
@@ -489,7 +502,7 @@ async def summarize_audio(req: SummarizeRequest):
             status_code=200,
             content={
                 "message": "Summary complete",
-                "file_name": req.file_name,
+                "file_name": file_name,
                 "summary": final_summary,
             },
         )
@@ -512,18 +525,20 @@ async def visualize_audio(req: VisualizeRequest):
     """
     try:
         user_id = _resolve_user(req.google_token)
+        folder_name = _sanitize_name(req.folder_name, "folder_name")
+        file_name = _sanitize_name(req.file_name, "file_name")
 
-        job_dir = _safe_join(BASE_DIR, user_id, req.folder_name)
+        job_dir = _safe_join(BASE_DIR, user_id, folder_name)
         manifest = _read_manifest(job_dir)
 
-        out_json = os.path.join(job_dir, f"{req.file_name}.json")
+        out_json = os.path.join(job_dir, f"{file_name}.json")
         if not os.path.exists(out_json):
             raise HTTPException(status_code=404, detail="JSON transcript not found.")
 
-        out_img_name = f"{req.file_name}.png"
+        out_img_name = f"{file_name}.png"
         out_img = os.path.join(job_dir, out_img_name)
 
-        print(f"\n[INFO] Visualizing conversation for {req.file_name}...")
+        print(f"\n[INFO] Visualizing conversation for {file_name}...")
         data = load_transcript_vizualize(out_json)
         extracted = extract_records(data)
         generate_timeline(extracted, out_img)
@@ -537,7 +552,7 @@ async def visualize_audio(req: VisualizeRequest):
             status_code=200,
             content={
                 "message": "Visualization complete",
-                "file_name": req.file_name,
+                "file_name": file_name,
                 "timeline_image": out_img,
             },
         )
@@ -580,7 +595,7 @@ async def history(google_token: str):
 async def job_details(folder_name: str, google_token: str):
     """Returns manifest.json for one job."""
     user_id = _resolve_user(google_token)
-    job_dir = _safe_join(BASE_DIR, user_id, folder_name)
+    job_dir = _safe_join(BASE_DIR, user_id, _sanitize_name(folder_name, "folder_name"))
     return JSONResponse(status_code=200, content=_read_manifest(job_dir))
 
 
@@ -606,14 +621,16 @@ _FILE_KEY_MAP: Dict[str, str] = {
 async def download(folder_name: str, file_type: FileType, google_token: str):
     """Stream a single artifact file from the job folder."""
     user_id = _resolve_user(google_token)
-    job_dir = _safe_join(BASE_DIR, user_id, folder_name)
+    job_dir = _safe_join(BASE_DIR, user_id, _sanitize_name(folder_name, "folder_name"))
     manifest = _read_manifest(job_dir)
 
     mf_key = _FILE_KEY_MAP[file_type]
-    filename = manifest.get("files", {}).get(mf_key)
-    if not filename:
+    raw_filename = manifest.get("files", {}).get(mf_key)
+    if not raw_filename:
         raise HTTPException(status_code=404, detail=f"{file_type} is not available yet.")
 
+    # Sanitize the filename from the manifest to guard against a tampered manifest
+    filename = _sanitize_name(raw_filename, "filename")
     file_path = _safe_join(job_dir, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk.")
