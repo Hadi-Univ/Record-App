@@ -165,7 +165,8 @@
                   Transcript
                 </h4>
                 <a
-                  :href="getDownloadUrl(job.folder_name, 'transcript')"
+                  v-if="job.file_name"
+                  :href="getDownloadUrl(job.folder_name, baseName(job.file_name) + '.txt')"
                   download
                   class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
                 >
@@ -185,18 +186,65 @@
                   <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10"/></svg>
                   Summary
                 </h4>
-                <a
-                  :href="getDownloadUrl(job.folder_name, 'summary')"
-                  download
-                  class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                  Download
-                </a>
+                <div v-if="job.file_name" class="flex gap-2">
+                  <a
+                    :href="getDownloadUrl(job.folder_name, baseName(job.file_name) + '_final_summary.txt')"
+                    download
+                    class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    TXT
+                  </a>
+                  <a
+                    :href="getDownloadUrl(job.folder_name, baseName(job.file_name) + '_final_summary.html')"
+                    download
+                    class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    HTML
+                  </a>
+                </div>
               </div>
               <div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed max-h-32 overflow-y-auto">
                 {{ jobDetails[job.folder_name].summary }}
               </div>
+            </div>
+
+            <!-- Audio Player -->
+            <div v-if="job.file_name" class="space-y-1.5">
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                Audio
+              </h4>
+              <audio
+                controls
+                class="w-full rounded-lg"
+                :src="getDownloadUrl(job.folder_name, baseName(job.file_name) + '.wav')"
+              />
+            </div>
+
+            <!-- Visualization (PNG) -->
+            <div v-if="job.file_name" class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                  Visualization
+                </h4>
+                <a
+                  :href="getDownloadUrl(job.folder_name, baseName(job.file_name) + '.png')"
+                  download
+                  class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  PNG
+                </a>
+              </div>
+              <img
+                :src="getDownloadUrl(job.folder_name, baseName(job.file_name) + '.png')"
+                class="w-full rounded-xl border border-slate-200"
+                alt="Visualization"
+                @error="$event.target.style.display = 'none'"
+              />
             </div>
 
             <!-- Keywords -->
@@ -225,7 +273,7 @@
               </h4>
               <div class="flex flex-wrap gap-2">
                 <a
-                  v-for="artifact in artifactList"
+                  v-for="artifact in artifactsForJob(job)"
                   :key="artifact.file"
                   :href="getDownloadUrl(job.folder_name, artifact.file)"
                   download
@@ -246,6 +294,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useAppStore } from '../stores/appStore'
 import { getHistory, getJob, getDownloadUrl, summarizeJob, visualizeJob } from '../services/api.js'
+import { baseName } from '../utils/fileUtils.js'
 
 const store = useAppStore()
 
@@ -257,12 +306,19 @@ const jobDetails = reactive({})
 const reRunning = reactive({})
 const reRunError = reactive({})
 
-const artifactList = [
-  { file: 'transcript', label: 'Transcript' },
-  { file: 'summary', label: 'Summary' },
-  { file: 'mindmap_svg', label: 'Mind Map SVG' },
-  { file: 'mindmap_html', label: 'Mind Map HTML' }
-]
+const artifactsForJob = (job) => {
+  const base = baseName(job.file_name)
+  if (!base) return []
+  return [
+    { file: `${base}.wav`, label: 'Audio (WAV)' },
+    { file: `${base}.txt`, label: 'Transcript (TXT)' },
+    { file: `${base}.json`, label: 'Transcript (JSON)' },
+    { file: `${base}.png`, label: 'Visualization (PNG)' },
+    { file: `${base}_final_summary.txt`, label: 'Summary (TXT)' },
+    { file: `${base}_final_summary.html`, label: 'Summary (HTML)' },
+    { file: 'manifest.json', label: 'Manifest' }
+  ]
+}
 
 const statusClass = (status) => {
   const map = {
@@ -322,7 +378,9 @@ const normalizeDetail = (detail) => {
     ...detail,
     transcript: detail.transcript ?? detail.transcription ?? results.transcript ?? results.transcription ?? '',
     summary: detail.summary ?? results.summary ?? '',
-    keywords: detail.keywords ?? results.keywords ?? []
+    keywords: detail.keywords ?? results.keywords ?? [],
+    mindmap_svg: detail.mindmap_svg ?? results.mindmap_svg ?? '',
+    mindmap_html: detail.mindmap_html ?? results.mindmap_html ?? ''
   }
 }
 

@@ -242,41 +242,17 @@
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10"/></svg>
             Summary
           </h3>
-          <a
-            v-if="pipeline.folderName"
-            :href="downloadUrl('summary')"
-            download
-            class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-            Download
-          </a>
-        </div>
-        <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed max-h-48 overflow-y-auto">
-          {{ pipeline.results.summary }}
-        </div>
-      </div>
-
-      <!-- Visualization result -->
-      <div v-if="pipeline.results.mindmap_svg || pipeline.results.mindmap_html" class="space-y-2">
-        <div class="flex items-center justify-between">
-          <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            Mind Map
-          </h3>
-          <div class="flex gap-3">
+          <div v-if="pipeline.folderName" class="flex gap-3">
             <a
-              v-if="pipeline.folderName"
-              :href="downloadUrl('mindmap_svg')"
+              :href="downloadUrl('summary')"
               download
               class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              SVG
+              TXT
             </a>
             <a
-              v-if="pipeline.folderName"
-              :href="downloadUrl('mindmap_html')"
+              :href="downloadUrl('summary_html')"
               download
               class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
@@ -285,10 +261,41 @@
             </a>
           </div>
         </div>
+        <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed max-h-48 overflow-y-auto">
+          {{ pipeline.results.summary }}
+        </div>
+      </div>
+
+      <!-- Visualization result -->
+      <div v-if="pipeline.results.mindmap_svg || pipeline.folderName" class="space-y-2">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Visualization
+          </h3>
+          <div v-if="pipeline.folderName" class="flex gap-3">
+            <a
+              :href="downloadUrl('mindmap_png')"
+              download
+              class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              PNG
+            </a>
+          </div>
+        </div>
+        <!-- Prefer inline SVG if returned by the API, otherwise show PNG -->
         <div
           v-if="pipeline.results.mindmap_svg"
           class="bg-white border border-slate-200 rounded-xl p-4 overflow-x-auto"
           v-html="pipeline.results.mindmap_svg"
+        />
+        <img
+          v-else-if="pipeline.folderName"
+          :src="downloadUrl('mindmap_png')"
+          class="w-full rounded-xl border border-slate-200"
+          alt="Visualization"
+          @error="$event.target.style.display = 'none'"
         />
       </div>
 
@@ -317,6 +324,7 @@ import { ref, computed } from 'vue'
 import Stepper from '../components/Stepper.vue'
 import { useAppStore } from '../stores/appStore'
 import * as api from '../services/api.js'
+import { baseName } from '../utils/fileUtils.js'
 
 const store = useAppStore()
 const pipeline = store.state.pipeline
@@ -354,8 +362,13 @@ const formatSize = (bytes) => {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-const downloadUrl = (filename) => {
-  return api.getDownloadUrl(pipeline.folderName, filename)
+const downloadUrl = (type) => {
+  const base = baseName(pipeline.fileName)
+  if (type === 'transcript') return api.getDownloadUrl(pipeline.folderName, `${base}.txt`)
+  if (type === 'summary') return api.getDownloadUrl(pipeline.folderName, `${base}_final_summary.txt`)
+  if (type === 'summary_html') return api.getDownloadUrl(pipeline.folderName, `${base}_final_summary.html`)
+  if (type === 'mindmap_png') return api.getDownloadUrl(pipeline.folderName, `${base}.png`)
+  return api.getDownloadUrl(pipeline.folderName, type)
 }
 
 const startPipeline = async () => {
