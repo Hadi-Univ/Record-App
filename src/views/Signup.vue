@@ -9,7 +9,7 @@
           </svg>
         </div>
         <h1 class="text-2xl font-extrabold text-slate-900">Create an account</h1>
-        <p class="text-slate-500 text-sm mt-2">Join Audio Intelligence today</p>
+        <p class="text-slate-500 text-sm mt-2">Join Record Note today</p>
       </div>
 
       <form @submit.prevent="handleSignup" class="space-y-4">

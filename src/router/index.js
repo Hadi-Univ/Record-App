@@ -66,7 +66,7 @@ router.beforeEach((to, from, next) => {
 })
 
 router.afterEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} — Audio Intelligence` : 'Audio Intelligence'
+  document.title = to.meta.title ? `${to.meta.title} — Record Note` : 'Record Note'
 })
 
 export default router
