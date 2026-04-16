@@ -12,6 +12,7 @@ endpoints already expect:
                            self-hosted usage without a full account
 """
 
+import contextlib
 import datetime
 import hmac
 import json
@@ -25,8 +26,7 @@ import ffmpeg
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel, EmailStr, field_validator
+from fastapi.responses import FileResponse, JSONResponsefrom pydantic import BaseModel, EmailStr, field_validator
 
 import auth
 from tools import extract_records, generate_timeline, json_to_txt, load_transcript_vizualize
@@ -90,28 +90,13 @@ _API_TOKEN_MAP: Dict[str, str] = _parse_api_tokens(os.getenv("API_TOKENS"))
 # APPLICATION
 # =========================================================
 
-app = FastAPI(
-    title="Audio Processing API",
-    description=(
-        "Modular API for transcribing, summarizing, and visualizing audio. "
-        "Supports Google OAuth, email/password, and static API token authentication."
-    ),
-)
+@contextlib.asynccontextmanager
+async def _lifespan(application: FastAPI):  # noqa: ARG001
+    """Startup and shutdown logic using the modern lifespan API."""
+    import warnings
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.on_event("startup")
-async def startup_event() -> None:
     auth.init_db()
     if not GOOGLE_CLIENT_ID:
-        import warnings
         warnings.warn(
             "VITE_GOOGLE_CLIENT_ID / GOOGLE_CLIENT_ID is not set. "
             "Google Sign-In will be unavailable.",
@@ -122,6 +107,25 @@ async def startup_event() -> None:
             f"[INFO] {len(_API_TOKEN_MAP)} static API token(s) configured.",
             flush=True,
         )
+    yield  # application runs here
+
+
+app = FastAPI(
+    title="Audio Processing API",
+    description=(
+        "Modular API for transcribing, summarizing, and visualizing audio. "
+        "Supports Google OAuth, email/password, and static API token authentication."
+    ),
+    lifespan=_lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # =========================================================
@@ -576,8 +580,8 @@ async def transcribe_audio(
             },
             "files": {
                 "audio": wav_name,
-                "transcript_txt": txt_name,
-                "transcript_json": json_name,
+                "transcript_txt": os.path.basename(txt_name),
+                "transcript_json": os.path.basename(json_name),
             },
         }
         _write_manifest(job_dir, manifest)

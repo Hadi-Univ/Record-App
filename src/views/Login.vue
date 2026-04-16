@@ -126,7 +126,7 @@
       </div>
 
       <!-- API Token tab -->
-      <div v-else class="space-y-4">
+      <div v-if="tab === 'api'" class="space-y-4">
         <div class="space-y-1">
           <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">API Token</label>
           <input
