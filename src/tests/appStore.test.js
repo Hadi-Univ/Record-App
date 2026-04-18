@@ -22,6 +22,7 @@ describe('appStore – initial state', () => {
     const { state } = await freshStore()
     expect(state.token).toBe('')
     expect(state.user).toBeNull()
+    expect(state.historyCache).toEqual([])
     expect(state.settings.provider).toBe('ollama')
     expect(state.settings.model).toBe('')
     expect(state.settings.apiKey).toBe('')
@@ -38,6 +39,7 @@ describe('appStore – initial state', () => {
       token: 'my-token',
       user: { name: 'Alice', email: 'alice@example.com', picture: '' },
       settings: { provider: 'openai', model: 'gpt-4o', apiKey: 'sk-123', apiUrl: 'https://api.example.com' },
+      historyCache: [{ folder_name: 'job_1' }],
       pipeline: {
         currentStep: 3,
         status: 'idle',
@@ -54,17 +56,18 @@ describe('appStore – initial state', () => {
     expect(state.settings.model).toBe('gpt-4o')
     expect(state.settings.apiKey).toBe('sk-123')
     expect(state.settings.apiUrl).toBe('https://api.example.com')
+    expect(state.historyCache).toEqual([{ folder_name: 'job_1' }])
     expect(state.pipeline.currentStep).toBe(3)
     expect(state.pipeline.folderName).toBe('job_abc')
     expect(state.pipeline.results.transcription).toBe('Hello')
   })
 
-  it('converts "running" pipeline status to "idle" on reload', async () => {
+  it('preserves "running" pipeline status on reload', async () => {
     const saved = {
       pipeline: { currentStep: 2, status: 'running', folderName: 'f', fileName: 'f.mp3', results: {}, lastError: '' }
     }
     const { state } = await freshStore(saved)
-    expect(state.pipeline.status).toBe('idle')
+    expect(state.pipeline.status).toBe('running')
   })
 
   it('preserves non-running pipeline status on reload', async () => {
@@ -90,6 +93,7 @@ describe('appStore – logout()', () => {
     const { state, logout } = await freshStore()
     state.token = 'tok'
     state.user = { name: 'Bob', email: 'bob@example.com', picture: '' }
+    state.historyCache = [{ folder_name: 'job_xyz' }]
     state.pipeline.currentStep = 3
     state.pipeline.folderName = 'job_xyz'
     state.pipeline.status = 'done'
@@ -99,6 +103,7 @@ describe('appStore – logout()', () => {
 
     expect(state.token).toBe('')
     expect(state.user).toBeNull()
+    expect(state.historyCache).toEqual([])
     expect(state.pipeline.currentStep).toBe(1)
     expect(state.pipeline.status).toBe('idle')
     expect(state.pipeline.folderName).toBe('')

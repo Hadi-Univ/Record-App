@@ -92,10 +92,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getHistory, summarizeJob, visualizeJob } from '../services/api.js'
+import { useAppStore } from '../stores/appStore'
 
 const router = useRouter()
+const store = useAppStore()
 
-const jobs = ref([])
+const jobs = ref(Array.isArray(store.state.historyCache) ? [...store.state.historyCache] : [])
 const loading = ref(false)
 const error = ref('')
 const reRunning = reactive({})
@@ -157,9 +159,17 @@ const loadHistory = async () => {
   error.value = ''
   try {
     const result = await getHistory()
-    jobs.value = Array.isArray(result) ? result : (result.jobs || result.data || [])
+    const normalized = Array.isArray(result) ? result : (result.jobs || result.data || [])
+    jobs.value = normalized
+    store.state.historyCache = normalized
   } catch (err) {
-    error.value = err.message
+    const cached = Array.isArray(store.state.historyCache) ? store.state.historyCache : []
+    if (cached.length) {
+      jobs.value = [...cached]
+      error.value = 'Offline mode: showing saved history from this device.'
+    } else {
+      error.value = err.message
+    }
   } finally {
     loading.value = false
   }

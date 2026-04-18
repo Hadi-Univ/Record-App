@@ -420,7 +420,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import Stepper from '../components/Stepper.vue'
 import AudioSpectrum from '../components/AudioSpectrum.vue'
 import { useAppStore } from '../stores/appStore'
@@ -571,6 +571,71 @@ const downloadUrl = (type) => {
   return api.getDownloadUrl(pipeline.folderName, type)
 }
 
+const isDoneStatus = (statusValue) => String(statusValue || '').toLowerCase() === 'done'
+
+const syncPipelineFromManifest = (jobDetail) => {
+  const status = jobDetail?.status || {}
+  const transcribeDone = isDoneStatus(status.transcribe)
+  const summarizeDone = isDoneStatus(status.summarize)
+  const visualizeDone = isDoneStatus(status.visualize)
+
+  pipeline.folderName = jobDetail?.folder_name || pipeline.folderName
+  pipeline.fileName = jobDetail?.file_name || pipeline.fileName
+
+  if (visualizeDone) {
+    pipeline.currentStep = 4
+    pipeline.status = 'done'
+    return 'visualize'
+  }
+
+  if (summarizeDone) {
+    pipeline.currentStep = 3
+    pipeline.status = 'idle'
+    return 'summarize'
+  }
+
+  if (transcribeDone) {
+    pipeline.currentStep = 2
+    pipeline.status = 'idle'
+    return 'transcribe'
+  }
+
+  pipeline.currentStep = 1
+  pipeline.status = 'idle'
+  return 'none'
+}
+
+const recoverPipelineAfterRefresh = async () => {
+  const wasRunningBeforeReload = pipeline.status === 'running'
+
+  if (wasRunningBeforeReload && !pipeline.folderName) {
+    pipeline.status = 'error'
+    pipeline.lastError = 'Pipeline was interrupted before job info was saved. Please start again.'
+    return
+  }
+
+  if (!pipeline.folderName) return
+
+  try {
+    const jobDetail = await api.getJob(pipeline.folderName)
+    const lastCompletedStep = syncPipelineFromManifest(jobDetail)
+    if (!wasRunningBeforeReload) return
+
+    if (lastCompletedStep === 'transcribe') {
+      await runSummarize()
+      return
+    }
+
+    if (lastCompletedStep === 'summarize') {
+      await runVisualize()
+    }
+  } catch (err) {
+    if (!wasRunningBeforeReload) return
+    pipeline.status = 'error'
+    pipeline.lastError = err.message || 'Failed to recover pipeline progress after refresh.'
+  }
+}
+
 const startPipeline = async () => {
   let fileToUpload = selectedFile.value
 
@@ -653,4 +718,8 @@ const runVisualize = async () => {
     pipeline.lastError = err.message
   }
 }
+
+onMounted(() => {
+  recoverPipelineAfterRefresh()
+})
 </script>

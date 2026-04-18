@@ -14,6 +14,7 @@ const state = reactive({
   token: savedState.token || '',
   user: savedState.user || null,
   authMethod: savedState.authMethod || '',
+  historyCache: Array.isArray(savedState.historyCache) ? savedState.historyCache : [],
   settings: {
     provider: savedState.settings?.provider || 'ollama',
     model: savedState.settings?.model || '',
@@ -24,8 +25,7 @@ const state = reactive({
   },
   pipeline: {
     currentStep: savedState.pipeline?.currentStep || 1,
-    // Reset 'running' status to 'idle' on page reload to avoid stuck loading states
-    status: savedState.pipeline?.status === 'running' ? 'idle' : (savedState.pipeline?.status || 'idle'),
+    status: savedState.pipeline?.status || 'idle',
     folderName: savedState.pipeline?.folderName || '',
     fileName: savedState.pipeline?.fileName || '',
     results: savedState.pipeline?.results || {},
@@ -49,6 +49,7 @@ const logout = () => {
   state.token = ''
   state.user = null
   state.authMethod = ''
+  state.historyCache = []
   state.pipeline = {
     currentStep: 1,
     status: 'idle',
