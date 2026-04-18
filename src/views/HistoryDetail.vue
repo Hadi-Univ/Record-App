@@ -460,7 +460,7 @@ const loadDetail = async () => {
     if (!applyCachedDetail(cached)) {
       error.value = err.message || 'Failed to load job detail.'
     } else {
-      error.value = 'Network error: showing saved job detail from this device.'
+      error.value = 'Unable to connect: displaying saved job detail from this device.'
     }
   } finally {
     loading.value = false
