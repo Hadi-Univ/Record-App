@@ -33,6 +33,11 @@ const routes = [
     meta: { requiresAuth: true, title: 'History', depth: 2 }
   },
   {
+    path: '/history/:folderName',
+    component: () => import('../views/HistoryDetail.vue'),
+    meta: { requiresAuth: true, title: 'History Detail', depth: 2 }
+  },
+  {
     path: '/settings',
     component: () => import('../views/Settings.vue'),
     meta: { requiresAuth: true, title: 'Settings', depth: 3 }

@@ -63,7 +63,10 @@
     </div>
 
     <!-- Backend Connection -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5">
+    <div
+      v-if="store.state.authMethod === 'api'"
+      class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5"
+    >
       <h2 class="text-base font-bold text-slate-900">Backend Connection</h2>
 
       <div class="space-y-1">
