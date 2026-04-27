@@ -25,7 +25,12 @@ const routes = [
   {
     path: '/',
     component: () => import('../views/Home.vue'),
-    meta: { requiresAuth: true, title: 'Pipeline', depth: 1 }
+    meta: { requiresAuth: true, title: 'Home', depth: 1 }
+  },
+  {
+    path: '/pipeline',
+    component: () => import('../views/Pipeline.vue'),
+    meta: { requiresAuth: true, title: 'Pipeline', depth: 2 }
   },
   {
     path: '/history',

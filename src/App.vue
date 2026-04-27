@@ -132,6 +132,7 @@ router.beforeEach((to, from) => {
 
 const navLinks = [
   { to: '/', label: 'Home', icon: 'home' },
+  { to: '/pipeline', label: 'Pipeline', icon: 'pipeline' },
   { to: '/history', label: 'History', icon: 'history' },
   { to: '/settings', label: 'Settings', icon: 'settings' }
 ]
