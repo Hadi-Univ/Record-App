@@ -745,6 +745,12 @@ const resetDashboard = () => {
   activeLanguages.value = []
 }
 
+const restoreOriginalTranscript = () => {
+  transcriptData.value = originalTranscriptData.value.map(item => ({ ...item }))
+  if (transcriptData.value.length) initDashboard()
+  else resetDashboard()
+}
+
 const resetDetailState = () => {
   detail.value = {
     transcript: '',
@@ -945,9 +951,7 @@ const switchToTranslation = async (langPair) => {
   if (!langPair) {
     // Restore original content
     detail.value = { summary: originalDetail.value.summary, transcript: originalDetail.value.transcript }
-    transcriptData.value = originalTranscriptData.value.map(item => ({ ...item }))
-    if (transcriptData.value.length) initDashboard()
-    else resetDashboard()
+    restoreOriginalTranscript()
     return
   }
 
@@ -973,13 +977,10 @@ const switchToTranslation = async (langPair) => {
         transcriptData.value = raw.map((item, i) => ({ ...item, _id: i }))
         initDashboard()
       } else {
-        transcriptData.value = originalTranscriptData.value.map(item => ({ ...item }))
-        if (transcriptData.value.length) initDashboard()
+        restoreOriginalTranscript()
       }
     } else {
-      transcriptData.value = originalTranscriptData.value.map(item => ({ ...item }))
-      if (transcriptData.value.length) initDashboard()
-      else resetDashboard()
+      restoreOriginalTranscript()
     }
 
     // Fetch translated raw TXT transcript

@@ -25,7 +25,7 @@ import ffmpeg
 from dotenv import load_dotenv
 from typing import Optional, Dict, Any, List, Literal
 
-import urllib.request
+import re
 import urllib.error
 import hashlib
 
@@ -1683,9 +1683,10 @@ async def download(folder_name: str, file_type: FileType, google_token: str, lan
     mf_key = _FILE_KEY_MAP[file_type]
 
     if lang_pair:
-        # Validate lang_pair: only allow alphanumeric characters and underscores
-        # (matches the output of _language_token, e.g. "indonesian_to_english")
-        if not all(c.isalnum() or c == "_" for c in lang_pair):
+        # Validate lang_pair: must match <source_token>_to_<target_token> where each token
+        # uses only lowercase alphanumerics and underscores (output of _language_token).
+        # Example: "indonesian_to_english", "chinese_simplified_to_english"
+        if not re.fullmatch(r'[a-z0-9][a-z0-9_]{0,38}_to_[a-z0-9][a-z0-9_]{0,38}', lang_pair):
             raise HTTPException(status_code=400, detail="Invalid lang_pair value.")
         translations = manifest.get("translations", {})
         if lang_pair not in translations:
