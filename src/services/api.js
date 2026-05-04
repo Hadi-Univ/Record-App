@@ -121,9 +121,12 @@ export async function getHistory() {
  * Build a download URL for an artifact.
  * GET /api/v1/download/{folder_name}/{file_type}
  * @param {string} fileType - one of: 'audio', 'summary_txt', 'summary_html', 'image', 'transcript_txt', 'transcript_json'
+ * @param {string|null} [langPair] - optional translation key, e.g. 'indonesian_to_english'
  */
-export function getDownloadUrl(folderName, fileType) {
-  return store.getAuthUrl(`/api/v1/download/${encodeURIComponent(folderName)}/${encodeURIComponent(fileType)}`)
+export function getDownloadUrl(folderName, fileType, langPair = null) {
+  const endpoint = `/api/v1/download/${encodeURIComponent(folderName)}/${encodeURIComponent(fileType)}`
+  const withLang = langPair ? `${endpoint}?lang_pair=${encodeURIComponent(langPair)}` : endpoint
+  return store.getAuthUrl(withLang)
 }
 
 /**
@@ -289,6 +292,70 @@ export async function translateJob(folderName, fileName, sourceLang, targetLang,
   if (!response.ok) {
     const err = await response.text()
     throw new Error(`Translation failed (${response.status}): ${err}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Generate flashcards from a transcribed job.
+ * POST /api/v1/flashcards
+ * @param {string} folderName - job folder name
+ * @param {string} fileName - base file name for the job
+ * @param {number} [count=10] - number of flashcards to generate (1-100)
+ */
+export async function generateFlashcards(folderName, fileName, count = 10) {
+  const url = `${store.getBaseUrl()}/api/v1/flashcards`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      google_token: store.state.token,
+      folder_name: folderName,
+      file_name: fileName,
+      provider: store.state.settings.provider,
+      model: store.state.settings.model || undefined,
+      api_key: store.state.settings.apiKey || undefined,
+      count
+    })
+  })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`Flashcards generation failed (${response.status}): ${err}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Send a chat message about the transcript to the AI assistant.
+ * POST /api/v1/chat
+ * @param {string} folderName - job folder name
+ * @param {string} fileName - base file name for the job
+ * @param {string} question - user's question about the transcript
+ * @param {{ role: string, content: string }[]} [history=[]] - previous conversation turns
+ */
+export async function sendChatMessage(folderName, fileName, question, history = []) {
+  const url = `${store.getBaseUrl()}/api/v1/chat`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      google_token: store.state.token,
+      folder_name: folderName,
+      file_name: fileName,
+      question,
+      provider: store.state.settings.provider,
+      model: store.state.settings.model || undefined,
+      api_key: store.state.settings.apiKey || undefined,
+      history: history.length ? history : undefined
+    })
+  })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`Chat failed (${response.status}): ${err}`)
   }
 
   return response.json()

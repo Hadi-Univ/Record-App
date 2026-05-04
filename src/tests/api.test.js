@@ -180,6 +180,18 @@ describe('getDownloadUrl', () => {
     expect(url).toContain('job%2F1')
     expect(url).toContain('/audio')
   })
+
+  it('appends lang_pair query param when provided', async () => {
+    const url = api.getDownloadUrl('job_1', 'summary_txt', 'indonesian_to_english')
+    expect(url).toContain('/api/v1/download/job_1/summary_txt')
+    expect(url).toContain('lang_pair=indonesian_to_english')
+    expect(url).toContain('google_token=test-token')
+  })
+
+  it('does not append lang_pair when null', async () => {
+    const url = api.getDownloadUrl('job_1', 'summary_txt', null)
+    expect(url).not.toContain('lang_pair')
+  })
 })
 
 describe('initChunkedUpload', () => {
@@ -379,5 +391,86 @@ describe('translateJob', () => {
   it('throws an error on non-ok response', async () => {
     global.fetch = vi.fn().mockResolvedValue(makeResponse('Bad language', false, 400))
     await expect(api.translateJob('job_1', 'audio', 'id', 'en')).rejects.toThrow('Translation failed (400)')
+  })
+})
+
+describe('generateFlashcards', () => {
+  it('POSTs to /api/v1/flashcards with correct JSON body', async () => {
+    const result = { message: 'Flashcards generated', file_name: 'audio', flashcards: [{ front: 'Q1', back: 'A1', type: 'qa', timestamp: '00:01:00' }] }
+    global.fetch = vi.fn().mockResolvedValue(makeResponse(result))
+
+    const data = await api.generateFlashcards('job_1', 'audio', 5)
+
+    const [url, opts] = global.fetch.mock.calls[0]
+    expect(url).toBe('https://api.example.com/api/v1/flashcards')
+    expect(opts.method).toBe('POST')
+    const body = JSON.parse(opts.body)
+    expect(body.google_token).toBe('test-token')
+    expect(body.folder_name).toBe('job_1')
+    expect(body.file_name).toBe('audio')
+    expect(body.count).toBe(5)
+    expect(body.provider).toBe('ollama')
+    expect(data).toEqual(result)
+  })
+
+  it('defaults count to 10 when not provided', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse({ flashcards: [] }))
+    await api.generateFlashcards('job_1', 'audio')
+    const body = JSON.parse(global.fetch.mock.calls[0][1].body)
+    expect(body.count).toBe(10)
+  })
+
+  it('omits model and api_key when they are empty strings', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse({ flashcards: [] }))
+    await api.generateFlashcards('job_1', 'audio')
+    const body = JSON.parse(global.fetch.mock.calls[0][1].body)
+    expect(body.model).toBeUndefined()
+    expect(body.api_key).toBeUndefined()
+  })
+
+  it('throws an error on non-ok response', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse('Not found', false, 404))
+    await expect(api.generateFlashcards('job_1', 'audio')).rejects.toThrow('Flashcards generation failed (404)')
+  })
+})
+
+describe('sendChatMessage', () => {
+  it('POSTs to /api/v1/chat with correct JSON body', async () => {
+    const result = { question: 'What is discussed?', answer: 'They discussed X.' }
+    global.fetch = vi.fn().mockResolvedValue(makeResponse(result))
+
+    const history = [{ role: 'user', content: 'Hello' }, { role: 'assistant', content: 'Hi!' }]
+    const data = await api.sendChatMessage('job_1', 'audio', 'What is discussed?', history)
+
+    const [url, opts] = global.fetch.mock.calls[0]
+    expect(url).toBe('https://api.example.com/api/v1/chat')
+    expect(opts.method).toBe('POST')
+    const body = JSON.parse(opts.body)
+    expect(body.google_token).toBe('test-token')
+    expect(body.folder_name).toBe('job_1')
+    expect(body.file_name).toBe('audio')
+    expect(body.question).toBe('What is discussed?')
+    expect(body.history).toEqual(history)
+    expect(data).toEqual(result)
+  })
+
+  it('omits history when empty', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse({ question: 'q', answer: 'a' }))
+    await api.sendChatMessage('job_1', 'audio', 'q')
+    const body = JSON.parse(global.fetch.mock.calls[0][1].body)
+    expect(body.history).toBeUndefined()
+  })
+
+  it('omits model and api_key when they are empty strings', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse({ question: 'q', answer: 'a' }))
+    await api.sendChatMessage('job_1', 'audio', 'q')
+    const body = JSON.parse(global.fetch.mock.calls[0][1].body)
+    expect(body.model).toBeUndefined()
+    expect(body.api_key).toBeUndefined()
+  })
+
+  it('throws an error on non-ok response', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse('Server error', false, 500))
+    await expect(api.sendChatMessage('job_1', 'audio', 'q')).rejects.toThrow('Chat failed (500)')
   })
 })

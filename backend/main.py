@@ -25,6 +25,7 @@ import ffmpeg
 from dotenv import load_dotenv
 from typing import Optional, Dict, Any, List, Literal
 
+import re
 import urllib.request
 import urllib.error
 import hashlib
@@ -32,7 +33,7 @@ import hashlib
 from fastapi import BackgroundTasks, FastAPI, UploadFile, File, Form, HTTPException, Header
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 import auth
 
@@ -506,10 +507,13 @@ class TranslateRequest(BaseModel):
     file_name: str
     source_language: str
     target_language: str
-    # Optional CTranslate2 model override (HF repo id or local path).
-    # Defaults to facebook/nllb-200-distilled-600M when not specified.
     ct2_model: Optional[str] = None
     files: Optional[List[Literal["json", "txt", "summary_txt"]]] = None
+
+
+class DeleteJobsRequest(BaseModel):
+    google_token: str
+    folder_names: List[str]
 
 
 class RetranscribeRequest(BaseModel):
@@ -517,11 +521,6 @@ class RetranscribeRequest(BaseModel):
     folder_name: str
     file_name: str
     transcribe_lang: Optional[str] = None
-
-
-class DeleteJobsRequest(BaseModel):
-    google_token: str
-    folder_names: List[str]
 
 
 class ChunkedUploadInitRequest(BaseModel):
@@ -592,6 +591,32 @@ class ChangePasswordRequest(BaseModel):
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters.")
         return v
+
+
+class FlashcardsRequest(BaseModel):
+    google_token: str
+    folder_name: str
+    file_name: str
+    provider: str = "ollama"
+    model: Optional[str] = None
+    api_key: Optional[str] = None
+    count: int = Field(default=10, ge=1, le=100)
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    google_token: str
+    folder_name: str
+    file_name: str
+    question: str = Field(min_length=1)
+    provider: str = "ollama"
+    model: Optional[str] = None
+    api_key: Optional[str] = None
+    history: Optional[List[ChatMessage]] = None
 
 
 # =========================================================
@@ -828,6 +853,9 @@ from utils import (
     translate_json_transcript,
     translate_plain_text_file,
     get_translator,
+    build_timestamped_context,
+    generate_flashcards,
+    chat_with_transcript,
 )
 from utils.translate import resolve_flores200
 
@@ -1655,7 +1683,8 @@ async def job_details(folder_name: str, google_token: str):
 # =========================================================
 
 FileType = Literal[
-    "audio", "summary_txt", "summary_html", "image", "transcript_txt", "transcript_json"
+    "audio", "summary_txt", "summary_html", "image", "transcript_txt", "transcript_json",
+    "flashcards_json"
 ]
 
 _FILE_KEY_MAP: Dict[str, str] = {
@@ -1665,20 +1694,41 @@ _FILE_KEY_MAP: Dict[str, str] = {
     "image": "timeline_png",
     "transcript_txt": "transcript_txt",
     "transcript_json": "transcript_json",
+    "flashcards_json": "flashcards_json",
 }
 
 
 @app.get("/api/v1/download/{folder_name}/{file_type}")
-async def download(folder_name: str, file_type: FileType, google_token: str):
-    """Stream a single artifact file from the job folder."""
+async def download(folder_name: str, file_type: FileType, google_token: str, lang_pair: Optional[str] = None):
+    """Stream a single artifact file from the job folder.
+    When *lang_pair* is supplied (e.g. ``indonesian_to_english``) the endpoint
+    serves the corresponding translated file stored under
+    ``manifest["translations"][lang_pair]`` instead of the primary artifact.
+    """
     user_id = _resolve_user(google_token)
     job_dir = _safe_join(BASE_DIR, user_id, _sanitize_name(folder_name, "folder_name"))
     manifest = _read_manifest(job_dir)
 
     mf_key = _FILE_KEY_MAP[file_type]
-    raw_filename = manifest.get("files", {}).get(mf_key)
-    if not raw_filename:
-        raise HTTPException(status_code=404, detail=f"{file_type} is not available yet.")
+    if lang_pair:
+        # Validate lang_pair: must match <source_token>_to_<target_token> where each token
+        # uses only lowercase alphanumerics and underscores (output of _language_token).
+        # Example: "indonesian_to_english", "chinese_simplified_to_english"
+        if not re.fullmatch(r'[a-z0-9][a-z0-9_]{0,38}_to_[a-z0-9][a-z0-9_]{0,38}', lang_pair):
+            raise HTTPException(status_code=400, detail="Invalid lang_pair value.")
+        translations = manifest.get("translations", {})
+        if lang_pair not in translations:
+            raise HTTPException(status_code=404, detail=f"Translation '{lang_pair}' not found.")
+        raw_filename = translations[lang_pair].get(mf_key)
+        if not raw_filename:
+            raise HTTPException(
+                status_code=404,
+                detail=f"'{file_type}' is not available for translation '{lang_pair}'.",
+            )
+    else:
+        raw_filename = manifest.get("files", {}).get(mf_key)
+        if not raw_filename:
+            raise HTTPException(status_code=404, detail=f"{file_type} is not available yet.")
 
     filename = _sanitize_name(raw_filename, "filename")
     file_path = _safe_join(job_dir, filename)
@@ -1686,3 +1736,124 @@ async def download(folder_name: str, file_type: FileType, google_token: str):
         raise HTTPException(status_code=404, detail="File not found on disk.")
 
     return FileResponse(file_path, filename=os.path.basename(file_path))
+
+
+# =========================================================
+# API: FLASHCARDS
+# =========================================================
+
+@app.post("/api/v1/flashcards")
+async def create_flashcards(req: FlashcardsRequest):
+    """
+    Generate flashcards / quiz questions from a transcribed conversation.
+
+    Reads the job's JSON transcript, builds a timestamped context string,
+    asks the configured LLM to produce *count* flashcards, and saves the
+    result to ``<base>_flashcards.json`` inside the job folder.
+
+    Each flashcard has the shape::
+
+        {"front": "...", "back": "...", "type": "qa|definition", "timestamp": "HH:MM:SS"}
+    """
+    try:
+        user_id = _resolve_user(req.google_token)
+        folder_name = _sanitize_name(req.folder_name, "folder_name")
+        file_name = _sanitize_name(req.file_name, "file_name")
+
+        job_dir = _safe_join(BASE_DIR, user_id, folder_name)
+        manifest = _read_manifest(job_dir)
+
+        json_transcript = _safe_join(job_dir, f"{file_name}.json")
+        if not os.path.exists(json_transcript):
+            raise HTTPException(
+                status_code=404,
+                detail="JSON transcript not found. Run transcription first.",
+            )
+
+        print(f"\n[INFO] Generating flashcards for {file_name} using {req.provider}...")
+        llm = make_provider(req.provider, model=req.model, api_key=req.api_key)
+        context = build_timestamped_context(json_transcript)
+        flashcards = generate_flashcards(llm, context, count=req.count)
+
+        flashcards_name = f"{file_name}_flashcards.json"
+        flashcards_path = _safe_join(job_dir, flashcards_name)
+        with open(flashcards_path, "w", encoding="utf-8") as f:
+            json.dump(flashcards, f, ensure_ascii=False, indent=2)
+
+        manifest.setdefault("files", {})["flashcards_json"] = flashcards_name
+        manifest.setdefault("status", {})["flashcards"] = "done"
+        manifest["updated_at"] = _now_iso()
+        _write_manifest(job_dir, manifest)
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": "Flashcards generated",
+                "file_name": file_name,
+                "flashcards": flashcards,
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =========================================================
+# API: CHAT
+# =========================================================
+
+@app.post("/api/v1/chat")
+async def chat(req: ChatRequest):
+    """
+    Stateless mini-chatbot for a single conversation.
+
+    The client provides the full conversation history on every request so no
+    server-side session state is required.  The LLM answers timestamp-based
+    questions such as:
+
+    - "At what timestamp did they discuss X?"
+    - "What was discussed between 00:05:00 and 00:10:00?"
+    - "Summarize key points from 00:00:00 to 00:05:00."
+    - "Find moments where keyword Y was mentioned."
+    """
+    try:
+        user_id = _resolve_user(req.google_token)
+        folder_name = _sanitize_name(req.folder_name, "folder_name")
+        file_name = _sanitize_name(req.file_name, "file_name")
+
+        job_dir = _safe_join(BASE_DIR, user_id, folder_name)
+        _read_manifest(job_dir)  # validates job existence
+
+        json_transcript = _safe_join(job_dir, f"{file_name}.json")
+        if not os.path.exists(json_transcript):
+            raise HTTPException(
+                status_code=404,
+                detail="JSON transcript not found. Run transcription first.",
+            )
+
+        print(f"\n[INFO] Chat query for {file_name} using {req.provider}: {req.question!r}")
+        llm = make_provider(req.provider, model=req.model, api_key=req.api_key)
+        context = build_timestamped_context(json_transcript)
+
+        history = (
+            [{"role": m.role, "content": m.content} for m in req.history]
+            if req.history
+            else []
+        )
+        answer = chat_with_transcript(llm, context, req.question, history=history)
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "question": req.question,
+                "answer": answer,
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+

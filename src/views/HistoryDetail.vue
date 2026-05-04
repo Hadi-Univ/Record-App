@@ -61,6 +61,45 @@
       <p class="text-sm font-semibold text-red-700">{{ error }}</p>
     </div>
 
+    <!-- ───────────────────────── Language Switcher ───────────────────────── -->
+    <div v-if="!loading && availableTranslations.length > 0" class="bg-white rounded-2xl shadow-sm border border-slate-200 px-6 py-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wide flex-shrink-0">
+          <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
+          </svg>
+          View in:
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button
+            @click="switchToTranslation(null)"
+            :class="selectedLangPair === null
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+          >
+            Original
+          </button>
+          <button
+            v-for="lp in availableTranslations"
+            :key="lp"
+            @click="switchToTranslation(lp)"
+            :class="selectedLangPair === lp
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+          >
+            {{ langPairLabel(lp) }}
+          </button>
+        </div>
+        <svg v-if="viewLoading" class="w-4 h-4 animate-spin text-indigo-500 ml-1" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+      </div>
+      <p v-if="viewError" class="mt-2 text-xs text-red-600 font-semibold">{{ viewError }}</p>
+    </div>
+
     <!-- ───────────────────────── Skeleton Loading ───────────────────────── -->
     <template v-if="loading">
       <div v-for="n in 3" :key="n" class="bg-white rounded-2xl border border-slate-200 p-6 animate-pulse">
@@ -316,6 +355,185 @@
         </div>
       </div>
 
+      <!-- ───────────────────────── Flashcards ───────────────────────── -->
+      <div v-if="manifest && manifest.files && manifest.files.transcript_json" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div @click="toggleSection('flashcards')" class="px-6 py-4 border-b border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+              </svg>
+            </div>
+            <h2 class="text-sm font-bold text-slate-800">Flashcards</h2>
+            <span v-if="flashcards.length" class="text-xs bg-yellow-100 text-yellow-700 font-bold px-2 py-0.5 rounded-full">{{ flashcards.length }}</span>
+          </div>
+          <svg :class="{'rotate-180': uiState.flashcards}" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <div v-show="uiState.flashcards" class="p-6 space-y-5">
+          <!-- Generate controls -->
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-2">
+              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap">Cards</label>
+              <input
+                v-model.number="flashcardCount"
+                type="number"
+                min="1"
+                max="100"
+                class="w-20 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 transition"
+              />
+            </div>
+            <button
+              @click="runGenerateFlashcards"
+              :disabled="flashcardsLoading"
+              class="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl transition shadow-sm"
+            >
+              <svg v-if="flashcardsLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              {{ flashcardsLoading ? 'Generating…' : 'Generate' }}
+            </button>
+          </div>
+          <!-- Error -->
+          <div v-if="flashcardsError" class="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+            <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <p class="text-xs text-red-700 font-semibold">{{ flashcardsError }}</p>
+          </div>
+          <!-- Card viewer -->
+          <div v-if="flashcards.length" class="space-y-4">
+            <!-- Flip card -->
+            <div
+              class="relative cursor-pointer select-none"
+              style="perspective: 1000px;"
+              @click="cardFlipped = !cardFlipped"
+            >
+              <div
+                class="relative w-full transition-transform duration-500"
+                :style="{ transformStyle: 'preserve-3d', transform: cardFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }"
+              >
+                <!-- Front -->
+                <div class="w-full bg-yellow-50 border border-yellow-200 rounded-2xl p-6 min-h-[120px] flex flex-col justify-between" style="backface-visibility: hidden;">
+                  <div>
+                    <div class="flex items-center justify-between mb-3">
+                      <span class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">Question</span>
+                      <span v-if="currentCard?.timestamp" class="text-[10px] text-slate-400 font-mono">{{ currentCard.timestamp }}</span>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-800 leading-relaxed">{{ currentCard?.front }}</p>
+                  </div>
+                  <p class="text-xs text-slate-400 mt-3 text-right">Click to reveal answer ↓</p>
+                </div>
+                <!-- Back -->
+                <div
+                  class="absolute inset-0 bg-indigo-50 border border-indigo-200 rounded-2xl p-6 min-h-[120px] flex flex-col justify-between"
+                  style="backface-visibility: hidden; transform: rotateY(180deg);"
+                >
+                  <div>
+                    <div class="flex items-center justify-between mb-3">
+                      <span class="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Answer</span>
+                      <span v-if="currentCard?.type" class="text-[10px] bg-indigo-100 text-indigo-600 font-bold px-2 py-0.5 rounded-full uppercase">{{ currentCard.type }}</span>
+                    </div>
+                    <p class="text-sm text-slate-700 leading-relaxed">{{ currentCard?.back }}</p>
+                  </div>
+                  <p class="text-xs text-slate-400 mt-3 text-right">Click to flip back ↑</p>
+                </div>
+              </div>
+            </div>
+            <!-- Navigation -->
+            <div class="flex items-center justify-between">
+              <button
+                @click="prevCard"
+                :disabled="currentCardIndex === 0"
+                class="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition px-3 py-1.5 rounded-lg hover:bg-indigo-50"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                Prev
+              </button>
+              <span class="text-xs font-semibold text-slate-500">{{ currentCardIndex + 1 }} / {{ flashcards.length }}</span>
+              <button
+                @click="nextCard"
+                :disabled="currentCardIndex === flashcards.length - 1"
+                class="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition px-3 py-1.5 rounded-lg hover:bg-indigo-50"
+              >
+                Next
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ───────────────────────── Chatbot ───────────────────────── -->
+      <div v-if="manifest && manifest.files && manifest.files.transcript_json" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div @click="toggleSection('chatbot')" class="px-6 py-4 border-b border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+              </svg>
+            </div>
+            <h2 class="text-sm font-bold text-slate-800">Ask the Transcript</h2>
+          </div>
+          <svg :class="{'rotate-180': uiState.chatbot}" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <div v-show="uiState.chatbot" class="flex flex-col" style="max-height: 520px;">
+          <!-- Message list -->
+          <div ref="chatScrollRef" class="flex-1 overflow-y-auto p-5 space-y-3 min-h-[120px]">
+            <div v-if="!chatMessages.length" class="text-center py-8">
+              <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+              <p class="text-xs text-slate-400">Ask anything about this recording.</p>
+              <p class="text-xs text-slate-400 mt-1">e.g. "What topics were discussed?" or "Summarize from 00:02:00 to 00:05:00."</p>
+            </div>
+            <div
+              v-for="(msg, i) in chatMessages"
+              :key="i"
+              class="flex"
+              :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
+            >
+              <div
+                class="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm"
+                :class="msg.role === 'user'
+                  ? 'bg-indigo-600 text-white rounded-br-sm'
+                  : 'bg-slate-100 text-slate-800 rounded-bl-sm'"
+              >
+                <p class="whitespace-pre-wrap break-words">{{ msg.content }}</p>
+              </div>
+            </div>
+            <div v-if="chatLoading" class="flex justify-start">
+              <div class="bg-slate-100 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay:0ms"></span>
+                <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay:150ms"></span>
+                <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay:300ms"></span>
+              </div>
+            </div>
+          </div>
+          <!-- Error -->
+          <div v-if="chatError" class="mx-5 mb-2">
+            <div class="bg-red-50 border border-red-200 rounded-xl p-2.5 flex items-start gap-2">
+              <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <p class="text-xs text-red-700 font-semibold">{{ chatError }}</p>
+            </div>
+          </div>
+          <!-- Input -->
+          <div class="border-t border-slate-200 p-4 flex items-end gap-3">
+            <textarea
+              v-model="chatInput"
+              @keydown="handleChatKeydown"
+              placeholder="Ask a question about the transcript… (Enter to send)"
+              rows="2"
+              :disabled="chatLoading"
+              class="flex-1 resize-none border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition disabled:opacity-50 leading-relaxed"
+            ></textarea>
+            <button
+              @click="sendChat"
+              :disabled="chatLoading || !chatInput.trim()"
+              class="flex-shrink-0 flex items-center justify-center w-10 h-10 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl transition shadow-sm"
+              aria-label="Send message"
+            >
+              <svg v-if="chatLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- ───────────────────────── Actions ───────────────────────── -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div @click="toggleSection('actions')" class="px-6 py-4 border-b border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition">
@@ -463,9 +681,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { getJob, getDownloadUrl, summarizeJob, visualizeJob, translateJob } from '../services/api'
+import { getJob, getDownloadUrl, summarizeJob, visualizeJob, translateJob, generateFlashcards, sendChatMessage } from '../services/api'
 import { useAppStore } from '../stores/appStore'
 
 const route = useRoute()
@@ -497,6 +715,8 @@ const uiState = ref({
   raw: true,
   audio: true,
   visualization: true,
+  flashcards: false,
+  chatbot: false,
   actions: true
 })
 
@@ -528,6 +748,117 @@ const translateForm = reactive({
   sourceLang: '',
   targetLang: '',
   files: ['json', 'txt', 'summary_txt']
+})
+
+// --- Flashcard state ---
+const flashcardsLoading = ref(false)
+const flashcardsError = ref('')
+const flashcards = ref([])         // [{ front, back, type, timestamp }]
+const currentCardIndex = ref(0)
+const cardFlipped = ref(false)
+const flashcardCount = ref(10)
+
+const currentCard = computed(() => flashcards.value[currentCardIndex.value] || null)
+
+const runGenerateFlashcards = async () => {
+  if (!fileName.value) {
+    flashcardsError.value = 'Job file name is not available. Please reload the page.'
+    return
+  }
+  flashcardsLoading.value = true
+  flashcardsError.value = ''
+  flashcards.value = []
+  currentCardIndex.value = 0
+  cardFlipped.value = false
+  try {
+    const result = await generateFlashcards(folderName.value, fileName.value, flashcardCount.value)
+    flashcards.value = result.flashcards || []
+    if (!flashcards.value.length) flashcardsError.value = 'No flashcards were returned.'
+  } catch (err) {
+    flashcardsError.value = err.message
+  } finally {
+    flashcardsLoading.value = false
+  }
+}
+
+const nextCard = () => {
+  if (currentCardIndex.value < flashcards.value.length - 1) {
+    currentCardIndex.value++
+    cardFlipped.value = false
+  }
+}
+
+const prevCard = () => {
+  if (currentCardIndex.value > 0) {
+    currentCardIndex.value--
+    cardFlipped.value = false
+  }
+}
+
+// --- Chatbot state ---
+const chatMessages = ref([])   // [{ role: 'user'|'assistant', content: string }]
+const chatInput = ref('')
+const chatLoading = ref(false)
+const chatError = ref('')
+const chatScrollRef = ref(null)
+
+const sendChat = async () => {
+  const question = chatInput.value.trim()
+  if (!question || chatLoading.value) return
+  if (!fileName.value) {
+    chatError.value = 'Job file name is not available. Please reload the page.'
+    return
+  }
+  chatMessages.value.push({ role: 'user', content: question })
+  chatInput.value = ''
+  chatLoading.value = true
+  chatError.value = ''
+  await nextTick()
+  if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
+
+  try {
+    const history = chatMessages.value.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
+    const result = await sendChatMessage(folderName.value, fileName.value, question, history)
+    chatMessages.value.push({ role: 'assistant', content: result.answer })
+  } catch (err) {
+    chatError.value = err.message
+    chatMessages.value.pop()
+  } finally {
+    chatLoading.value = false
+    await nextTick()
+    if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
+  }
+}
+
+const handleChatKeydown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    sendChat()
+  }
+}
+
+// --- Language switcher (view translated content) ---
+const selectedLangPair = ref(null)
+const viewLoading = ref(false)
+const viewError = ref('')
+
+// Backup of original (untranslated) content, populated after loadDetail
+const originalDetail = ref({ transcript: '', summary: '' })
+const originalTranscriptData = ref([])
+
+// Derive a user-friendly label from a lang_pair token (e.g. "indonesian_to_english" → "Indonesian → English")
+const langPairLabel = (langPair) => {
+  const parts = langPair.split('_to_')
+  if (parts.length !== 2) return langPair
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1)
+  return `${cap(parts[0])} → ${cap(parts[1])}`
+}
+
+// Available translations derived from the manifest
+const availableTranslations = computed(() => {
+  const translations = manifest.value?.translations
+  if (!translations || typeof translations !== 'object') return []
+  return Object.keys(translations)
 })
 
 // --- Status helpers ---
@@ -677,14 +1008,37 @@ const initDashboard = () => {
   activeLanguages.value = availableLanguages.value
 }
 
+const resetDashboard = () => {
+  speakerSettings.value = {}
+  activeLanguages.value = []
+}
+
+const restoreOriginalTranscript = () => {
+  transcriptData.value = originalTranscriptData.value.map(item => ({ ...item }))
+  if (transcriptData.value.length) initDashboard()
+  else resetDashboard()
+}
+
 const resetDetailState = () => {
   detail.value = {
     transcript: '',
     summary: ''
   }
   transcriptData.value = []
-  speakerSettings.value = {}
-  activeLanguages.value = []
+  resetDashboard()
+  selectedLangPair.value = null
+  viewError.value = ''
+  originalDetail.value = { transcript: '', summary: '' }
+  originalTranscriptData.value = []
+  // Reset flashcard state
+  flashcards.value = []
+  currentCardIndex.value = 0
+  cardFlipped.value = false
+  flashcardsError.value = ''
+  // Reset chatbot state
+  chatMessages.value = []
+  chatInput.value = ''
+  chatError.value = ''
 }
 
 const hasDetailContent = (payload) => {
@@ -711,8 +1065,7 @@ const applyCachedDetail = (cached) => {
   if (transcriptData.value.length) {
     initDashboard()
   } else {
-    speakerSettings.value = {}
-    activeLanguages.value = []
+    resetDashboard()
   }
   return true
 }
@@ -773,8 +1126,7 @@ const loadDetail = async () => {
     if (transcriptData.value.length) {
       initDashboard()
     } else {
-      speakerSettings.value = {}
-      activeLanguages.value = []
+      resetDashboard()
     }
     
     // 3. ALWAYS Fetch RAW TXT Transcript
@@ -788,6 +1140,9 @@ const loadDetail = async () => {
       detail.value.transcript = ''
     }
     saveCachedDetail()
+    // Save original content for the language switcher (shallow copy with _id intact)
+    originalDetail.value = { summary: detail.value.summary, transcript: detail.value.transcript }
+    originalTranscriptData.value = transcriptData.value.map(item => ({ ...item }))
 
   } catch (err) {
     if (!applyCachedDetail(cached)) {
@@ -864,7 +1219,62 @@ const runTranslateDetail = async () => {
   }
 }
 
-const downloadUrl = (fileType) => getDownloadUrl(folderName.value, fileType)
+const downloadUrl = (fileType) => getDownloadUrl(folderName.value, fileType, selectedLangPair.value)
+
+const switchToTranslation = async (langPair) => {
+  selectedLangPair.value = langPair
+  viewError.value = ''
+
+  if (!langPair) {
+    // Restore original content
+    detail.value = { summary: originalDetail.value.summary, transcript: originalDetail.value.transcript }
+    restoreOriginalTranscript()
+    return
+  }
+
+  viewLoading.value = true
+  const translations = manifest.value?.translations?.[langPair] || {}
+  try {
+    // Fetch translated summary
+    if (translations.summary_txt) {
+      const url = getDownloadUrl(folderName.value, 'summary_txt', langPair)
+      const r = await fetch(url)
+      if (r.ok) detail.value.summary = await r.text()
+      else detail.value.summary = originalDetail.value.summary
+    } else {
+      detail.value.summary = originalDetail.value.summary
+    }
+
+    // Fetch translated JSON transcript
+    if (translations.transcript_json) {
+      const url = getDownloadUrl(folderName.value, 'transcript_json', langPair)
+      const r = await fetch(url)
+      if (r.ok) {
+        const raw = await r.json()
+        transcriptData.value = raw.map((item, i) => ({ ...item, _id: i }))
+        initDashboard()
+      } else {
+        restoreOriginalTranscript()
+      }
+    } else {
+      restoreOriginalTranscript()
+    }
+
+    // Fetch translated raw TXT transcript
+    if (translations.transcript_txt) {
+      const url = getDownloadUrl(folderName.value, 'transcript_txt', langPair)
+      const r = await fetch(url)
+      if (r.ok) detail.value.transcript = await r.text()
+      else detail.value.transcript = originalDetail.value.transcript
+    } else {
+      detail.value.transcript = originalDetail.value.transcript
+    }
+  } catch (e) {
+    viewError.value = `Failed to load translated content: ${e.message}`
+  } finally {
+    viewLoading.value = false
+  }
+}
 
 watch(() => route.params.folderName, loadDetail, { immediate: true })
 </script>
