@@ -258,6 +258,21 @@ def _now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
+def _detect_job_language(job_dir: str, file_name: str) -> str:
+    """
+    Return the full name of the dominant spoken language for a transcribed job
+    (e.g. ``"Indonesian"``).  Reads ``<file_name>.json`` from *job_dir* and
+    delegates to :func:`detect_dominant_language`.  Falls back to
+    ``"Indonesian"`` when the JSON is absent or contains no language metadata.
+    """
+    json_path = _safe_join(job_dir, f"{file_name}.json")
+    if os.path.exists(json_path):
+        language, _ = detect_dominant_language(json_path)
+        if language:
+            return language
+    return "Indonesian"
+
+
 def _language_token(value: str) -> str:
     """
     Normalize language labels (name or code) to filesystem-safe lowercase tokens.
@@ -888,6 +903,7 @@ from utils import (
     build_timestamped_context,
     generate_flashcards,
     chat_with_transcript,
+    detect_dominant_language,
 )
 from utils.translate import resolve_flores200
 
@@ -1595,7 +1611,10 @@ async def summarize_audio(req: SummarizeRequest):
         print(f"\n[INFO] Summarizing {file_name} using {req.provider}...")
         llm = make_provider(req.provider, model=req.model, api_key=req.api_key)
         transcript = load_transcript(out_txt)
-        chunk_summaries, final_summary, json_summary = summarize_pipeline(llm, transcript)
+
+        language = _detect_job_language(job_dir, file_name)
+
+        chunk_summaries, final_summary, json_summary = summarize_pipeline(llm, transcript, language=language)
         save_results(file_name, job_dir, chunk_summaries, final_summary, json_summary)
 
         summary_txt_name = f"{file_name}_final_summary.txt"
@@ -1805,7 +1824,8 @@ async def create_flashcards(req: FlashcardsRequest):
         print(f"\n[INFO] Generating flashcards for {file_name} using {req.provider}...")
         llm = make_provider(req.provider, model=req.model, api_key=req.api_key)
         context = build_timestamped_context(json_transcript)
-        flashcards = generate_flashcards(llm, context, count=req.count)
+        language = _detect_job_language(job_dir, file_name)
+        flashcards = generate_flashcards(llm, context, count=req.count, language=language)
 
         flashcards_name = f"{file_name}_flashcards.json"
         flashcards_path = _safe_join(job_dir, flashcards_name)
@@ -1868,13 +1888,14 @@ async def chat(req: ChatRequest):
         print(f"\n[INFO] Chat query for {file_name} using {req.provider}: {req.question!r}")
         llm = make_provider(req.provider, model=req.model, api_key=req.api_key)
         context = build_timestamped_context(json_transcript)
+        dominant_language = _detect_job_language(job_dir, file_name)
 
         history = (
             [{"role": m.role, "content": m.content} for m in req.history]
             if req.history
             else []
         )
-        answer = chat_with_transcript(llm, context, req.question, history=history)
+        answer = chat_with_transcript(llm, context, req.question, history=history, language=dominant_language)
 
         return JSONResponse(
             status_code=200,
@@ -1888,4 +1909,3 @@ async def chat(req: ChatRequest):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
