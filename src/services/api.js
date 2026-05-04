@@ -300,6 +300,8 @@ export async function translateJob(folderName, fileName, sourceLang, targetLang,
 /**
  * Generate flashcards from a transcribed job.
  * POST /api/v1/flashcards
+ * @param {string} folderName - job folder name
+ * @param {string} fileName - base file name for the job
  * @param {number} [count=10] - number of flashcards to generate (1-100)
  */
 export async function generateFlashcards(folderName, fileName, count = 10) {
@@ -329,6 +331,9 @@ export async function generateFlashcards(folderName, fileName, count = 10) {
 /**
  * Send a chat message about the transcript to the AI assistant.
  * POST /api/v1/chat
+ * @param {string} folderName - job folder name
+ * @param {string} fileName - base file name for the job
+ * @param {string} question - user's question about the transcript
  * @param {{ role: string, content: string }[]} [history=[]] - previous conversation turns
  */
 export async function sendChatMessage(folderName, fileName, question, history = []) {
