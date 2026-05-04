@@ -593,6 +593,10 @@ class ChangePasswordRequest(BaseModel):
         return v
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 class FlashcardsRequest(BaseModel):
     google_token: str
     folder_name: str
@@ -722,15 +726,18 @@ async def estimate_processing(
 @app.post("/api/v1/auth/register", status_code=201)
 async def register(req: RegisterRequest):
     """
-    Create a new account.  Returns a JWT token so the user is immediately
-    logged in after registration.
+    Create a new account.  Returns a JWT access token and a long-lived refresh
+    token so the user is immediately logged in after registration.
     """
     user = auth.create_user(req.name, str(req.email), req.password)
     token = auth.create_access_token(user["id"])
+    refresh_token = auth.create_refresh_token(user["id"])
     return JSONResponse(
         status_code=201,
         content={
             "token": token,
+            "refresh_token": refresh_token,
+            "expires_in": auth.JWT_EXPIRES_SECONDS,
             "user": {
                 "name": user["name"],
                 "email": user["email"],
@@ -747,7 +754,8 @@ async def register(req: RegisterRequest):
 @app.post("/api/v1/auth/login")
 async def login(req: LoginRequest):
     """
-    Authenticate with email + password.  Returns a JWT token.
+    Authenticate with email + password.  Returns a JWT access token and a
+    long-lived refresh token.
     Uses a generic error message to avoid leaking whether the email exists.
     """
     user = auth.get_user_by_email(str(req.email))
@@ -755,15 +763,39 @@ async def login(req: LoginRequest):
         raise HTTPException(status_code=401, detail="Incorrect email or password.")
 
     token = auth.create_access_token(user["id"])
+    refresh_token = auth.create_refresh_token(user["id"])
     return JSONResponse(
         status_code=200,
         content={
             "token": token,
+            "refresh_token": refresh_token,
+            "expires_in": auth.JWT_EXPIRES_SECONDS,
             "user": {
                 "name": user["name"],
                 "email": user["email"],
                 "picture": "",
             },
+        },
+    )
+
+
+# =========================================================
+# API: AUTH – REFRESH TOKEN
+# =========================================================
+
+@app.post("/api/v1/auth/refresh")
+async def refresh_token(req: RefreshRequest):
+    """
+    Exchange a valid refresh token for a new access token + refresh token pair.
+    The old refresh token is invalidated (token rotation) to limit replay risk.
+    """
+    new_access, new_refresh = auth.rotate_refresh_token(req.refresh_token)
+    return JSONResponse(
+        status_code=200,
+        content={
+            "token": new_access,
+            "refresh_token": new_refresh,
+            "expires_in": auth.JWT_EXPIRES_SECONDS,
         },
     )
 

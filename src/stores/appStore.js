@@ -12,6 +12,8 @@ const savedState = (() => {
 
 const state = reactive({
   token: savedState.token || '',
+  refreshToken: savedState.refreshToken || '',
+  tokenExpiresAt: savedState.tokenExpiresAt || 0,
   user: savedState.user || null,
   authMethod: savedState.authMethod || '',
   historyCache: Array.isArray(savedState.historyCache) ? savedState.historyCache : [],
@@ -51,6 +53,8 @@ watch(
 
 const logout = () => {
   state.token = ''
+  state.refreshToken = ''
+  state.tokenExpiresAt = 0
   state.user = null
   state.authMethod = ''
   state.historyCache = []
@@ -81,10 +85,26 @@ const getBaseUrl = () => {
   return url.endsWith('/') ? url.slice(0, -1) : url
 }
 
+/** Returns true when the stored access token has passed its expiry timestamp.
+ *  Returns false when tokenExpiresAt is 0 (API tokens have no tracked expiry). */
+const isTokenExpired = () => {
+  if (!state.tokenExpiresAt) return false
+  return Date.now() >= state.tokenExpiresAt
+}
+
+/**
+ * Returns true when the access token will expire within `withinMs` milliseconds.
+ * Defaults to 7 days, giving a comfortable window to refresh while still online.
+ */
+const isTokenNearExpiry = (withinMs = 7 * 24 * 60 * 60 * 1000) => {
+  if (!state.tokenExpiresAt) return false
+  return Date.now() >= state.tokenExpiresAt - withinMs
+}
+
 const getAuthUrl = (endpoint) => {
   const token = encodeURIComponent(state.token)
   const sep = endpoint.includes('?') ? '&' : '?'
   return `${getBaseUrl()}${endpoint}${sep}google_token=${token}`
 }
 
-export const useAppStore = () => ({ state, logout, clearPipeline, getBaseUrl, getAuthUrl })
+export const useAppStore = () => ({ state, logout, clearPipeline, getBaseUrl, getAuthUrl, isTokenExpired, isTokenNearExpiry })

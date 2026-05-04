@@ -35,7 +35,13 @@ DB_PATH: str = os.getenv("AUTH_DB_PATH", "auth.db")
 
 JWT_SECRET: str = os.getenv("JWT_SECRET")
 JWT_ALGORITHM: str = "HS256"
-JWT_EXPIRES_HOURS: int = int(os.getenv("JWT_EXPIRES_HOURS", "24"))
+_DEFAULT_JWT_EXPIRES_HOURS: int = 30 * 24  # 30 days
+JWT_EXPIRES_HOURS: int = int(os.getenv("JWT_EXPIRES_HOURS", str(_DEFAULT_JWT_EXPIRES_HOURS)))
+
+REFRESH_TOKEN_EXPIRES_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRES_DAYS", "90"))
+
+# Convenience: access-token lifetime in seconds, used in API responses.
+JWT_EXPIRES_SECONDS: int = JWT_EXPIRES_HOURS * 3600
 
 def _check_jwt_secret() -> None:
     """
@@ -97,6 +103,15 @@ def init_db() -> None:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                token      TEXT PRIMARY KEY,
+                user_id    TEXT NOT NULL,
+                expires_at REAL NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS refresh_tokens (
                 token      TEXT PRIMARY KEY,
                 user_id    TEXT NOT NULL,
                 expires_at REAL NOT NULL
@@ -192,6 +207,52 @@ def verify_basic_token(token: str) -> str:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid authentication token.")
+
+
+# =========================================================
+# REFRESH TOKENS
+# =========================================================
+
+def create_refresh_token(user_id: str) -> str:
+    """
+    Generate a long-lived refresh token and persist it.
+    Each user may have many refresh tokens (one per device/session).
+    Returns the token string.
+    """
+    token = secrets.token_urlsafe(48)
+    expires_at = (
+        datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRES_DAYS)
+    ).timestamp()
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES (?, ?, ?)",
+            (token, user_id, expires_at),
+        )
+    return token
+
+
+def rotate_refresh_token(old_token: str) -> tuple[str, str]:
+    """
+    Validate a refresh token, delete it (one-time use), and issue a new pair.
+    Returns (new_access_token, new_refresh_token).
+    Raises HTTPException 401 if invalid or expired.
+    """
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT user_id, expires_at FROM refresh_tokens WHERE token = ?",
+            (old_token,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=401, detail="Invalid or already used refresh token.")
+        if datetime.now(timezone.utc).timestamp() > row["expires_at"]:
+            conn.execute("DELETE FROM refresh_tokens WHERE token = ?", (old_token,))
+            raise HTTPException(status_code=401, detail="Refresh token expired. Please sign in again.")
+        user_id: str = row["user_id"]
+        conn.execute("DELETE FROM refresh_tokens WHERE token = ?", (old_token,))
+
+    new_access = create_access_token(user_id)
+    new_refresh = create_refresh_token(user_id)
+    return new_access, new_refresh
 
 
 # =========================================================

@@ -81,6 +81,8 @@ export async function loginBasic(email, password) {
 
   const data = await response.json()
   store.state.token = data.token || data.access_token || ''
+  store.state.refreshToken = data.refresh_token || ''
+  store.state.tokenExpiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : 0
   store.state.user = {
     name: data.user?.name || data.name || email,
     email: data.user?.email || data.email || email,
@@ -92,6 +94,7 @@ export async function loginBasic(email, password) {
 /**
  * Log in by directly providing an API token.
  * Intended for personal/self-hosted usage where token issuance is managed externally.
+ * API tokens have no expiry tracked client-side.
  */
 export function loginWithApiToken(token, name = 'API User', email = '') {
   const store = useAppStore()
@@ -101,6 +104,8 @@ export function loginWithApiToken(token, name = 'API User', email = '') {
   }
 
   store.state.token = trimmedToken
+  store.state.refreshToken = ''
+  store.state.tokenExpiresAt = 0
   store.state.user = {
     name: (name || '').trim() || 'API User',
     email: (email || '').trim(),
@@ -130,6 +135,8 @@ export async function registerBasic(name, email, password) {
   const token = data.token || data.access_token
   if (token) {
     store.state.token = token
+    store.state.refreshToken = data.refresh_token || ''
+    store.state.tokenExpiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : 0
     store.state.user = {
       name: data.user?.name || name,
       email: data.user?.email || email,
@@ -193,4 +200,36 @@ export async function changePassword(currentPassword, newPassword) {
   if (!response.ok) {
     throw new Error(await parseErrorBody(response))
   }
+}
+
+/**
+ * Silently exchange the stored refresh token for a fresh access token + refresh token.
+ * Updates the store on success.  Throws on network error or invalid refresh token.
+ * Should only be called for `authMethod === 'basic'` sessions.
+ */
+export async function refreshAccessToken() {
+  const store = useAppStore()
+  if (!store.state.refreshToken) {
+    throw new Error('No refresh token available.')
+  }
+
+  const url = `${store.getBaseUrl()}/api/v1/auth/refresh`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: store.state.refreshToken })
+  })
+
+  if (!response.ok) {
+    throw new Error(await parseErrorBody(response))
+  }
+
+  const data = await response.json()
+  const newToken = data.token || data.access_token
+  if (!newToken) {
+    throw new Error('Refresh response did not contain a new access token.')
+  }
+  store.state.token = newToken
+  store.state.refreshToken = data.refresh_token || ''
+  store.state.tokenExpiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : 0
 }

@@ -113,9 +113,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from './stores/appStore'
+import { refreshAccessToken } from './services/authService'
 import NavIcon from './components/NavIcon.vue'
 
 const store = useAppStore()
@@ -128,6 +129,25 @@ router.beforeEach((to, from) => {
   const fromDepth = from.meta.depth ?? 1
   transitionName.value = toDepth >= fromDepth ? 'slide-left' : 'slide-right'
   return true
+})
+
+// Silently refresh the access token on startup when it is near expiry (within
+// 7 days) and a refresh token is available.  Errors are swallowed so that
+// offline users are never forcibly logged out by a failed refresh attempt.
+onMounted(async () => {
+  if (
+    store.state.authMethod === 'basic' &&
+    store.state.refreshToken &&
+    store.isTokenNearExpiry()
+  ) {
+    try {
+      await refreshAccessToken()
+    } catch {
+      // Offline or refresh token expired – keep the existing session alive.
+      // The user will be asked to re-authenticate only when they attempt a
+      // server action that requires a valid token.
+    }
+  }
 })
 
 const navLinks = [
