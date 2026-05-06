@@ -900,7 +900,7 @@ const startPipeline = async () => {
   try {
     // Step 1: Upload + Transcribe (always uses chunked upload)
     const transcribeResult = await uploadFileChunked(fileToUpload)
-    pipeline.stageTimings = { ...pipeline.stageTimings, upload: { ...pipeline.stageTimings.upload, end: Date.now() } }
+    pipeline.stageTimings.upload.end = Date.now()
     pipeline.folderName = transcribeResult.folder_name || transcribeResult.folderName || ''
     pipeline.fileName =
       transcribeResult.file_name ||
@@ -979,11 +979,11 @@ const runSummarize = async () => {
 
   pipeline.status = 'running'
   pipeline.lastError = ''
-  pipeline.stageTimings = { ...pipeline.stageTimings, summarize: { start: Date.now() } }
+  pipeline.stageTimings.summarize = { start: Date.now() }
 
   try {
     const summarizeResult = await api.summarizeJob(pipeline.folderName, pipeline.fileName)
-    pipeline.stageTimings = { ...pipeline.stageTimings, summarize: { ...pipeline.stageTimings.summarize, end: Date.now() } }
+    pipeline.stageTimings.summarize.end = Date.now()
     pipeline.results = {
       ...pipeline.results,
       summary: summarizeResult.summary || '',
@@ -1006,11 +1006,11 @@ const runVisualize = async () => {
 
   pipeline.status = 'running'
   pipeline.lastError = ''
-  pipeline.stageTimings = { ...pipeline.stageTimings, visualize: { start: Date.now() } }
+  pipeline.stageTimings.visualize = { start: Date.now() }
 
   try {
     const visualizeResult = await api.visualizeJob(pipeline.folderName, pipeline.fileName)
-    pipeline.stageTimings = { ...pipeline.stageTimings, visualize: { ...pipeline.stageTimings.visualize, end: Date.now() } }
+    pipeline.stageTimings.visualize.end = Date.now()
     pipeline.results = {
       ...pipeline.results,
       mindmap_svg: visualizeResult.svg || visualizeResult.mindmap_svg || '',
@@ -1035,7 +1035,7 @@ const rerunTranscribe = async () => {
 
   try {
     const result = await api.retranscribeJob(pipeline.folderName, pipeline.fileName)
-    pipeline.stageTimings = { ...pipeline.stageTimings, upload: { ...pipeline.stageTimings.upload, end: Date.now() } }
+    pipeline.stageTimings.upload.end = Date.now()
     pipeline.results = {
       transcription: result.transcript || '',
       summary: '',
@@ -1055,7 +1055,9 @@ const rerunTranscribe = async () => {
 }
 
 const rerunSummarize = async () => {
-  pipeline.stageTimings = { upload: pipeline.stageTimings?.upload }
+  // Keep upload timing; fresh summarize and visualize timings will be recorded
+  delete pipeline.stageTimings.summarize
+  delete pipeline.stageTimings.visualize
   pipeline.completedAt = null
   pipeline.results = {
     ...pipeline.results,
@@ -1068,7 +1070,8 @@ const rerunSummarize = async () => {
 }
 
 const rerunVisualize = async () => {
-  pipeline.stageTimings = { upload: pipeline.stageTimings?.upload, summarize: pipeline.stageTimings?.summarize }
+  // Keep upload + summarize timings; fresh visualize timing will be recorded
+  delete pipeline.stageTimings.visualize
   pipeline.completedAt = null
   pipeline.results = {
     ...pipeline.results,
