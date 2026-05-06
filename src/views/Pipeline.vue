@@ -213,7 +213,7 @@
         </span>
       </button>
 
-      <!-- Chunked upload progress bar (large files only) -->
+      <!-- Chunked upload progress bar -->
       <div v-if="chunkUploadStep" class="mt-4 space-y-1.5">
         <div class="flex items-center justify-between text-xs font-semibold text-slate-600">
           <span>{{ chunkUploadStep === 'assembling' ? 'Assembling &amp; transcribing…' : 'Uploading chunks…' }}</span>
@@ -705,10 +705,8 @@ const startPipeline = async () => {
   pipeline.lastError = ''
 
   try {
-    // Step 1: Upload + Transcribe (chunked for large files)
-    const transcribeResult = fileToUpload.size > api.LARGE_FILE_THRESHOLD
-      ? await uploadLargeFile(fileToUpload)
-      : await api.uploadAndTranscribe(fileToUpload)
+    // Step 1: Upload + Transcribe (always uses chunked upload)
+    const transcribeResult = await uploadFileChunked(fileToUpload)
     pipeline.folderName = transcribeResult.folder_name || transcribeResult.folderName || ''
     pipeline.fileName =
       transcribeResult.file_name ||
@@ -736,7 +734,7 @@ const startPipeline = async () => {
  * Splits the file into CHUNK_SIZE pieces, uploads them in parallel batches,
  * retries failed chunks, then calls /upload/complete to assemble + transcribe.
  */
-const uploadLargeFile = async (file) => {
+const uploadFileChunked = async (file) => {
   const totalChunks = Math.ceil(file.size / api.CHUNK_SIZE)
   chunkUploadProgress.value = 0
   chunkUploadStep.value = 'uploading'
