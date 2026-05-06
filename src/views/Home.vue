@@ -7,9 +7,9 @@
         <div>
           <p class="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1">{{ timeOfDay }}</p>
           <h1 class="text-2xl font-extrabold text-slate-900">
-            {{ userName ? `Welcome back, ${userName}!` : 'Welcome back!' }}
+            {{ userName ? t('home.welcomeBackName', { name: userName }) : t('home.welcomeBack') }}
           </h1>
-          <p class="text-sm text-slate-500 mt-1">Ready to process your next audio file?</p>
+          <p class="text-sm text-slate-500 mt-1">{{ t('home.readyToProcess') }}</p>
         </div>
         <router-link
           to="/pipeline"
@@ -19,22 +19,22 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
-          Start Pipeline
+          {{ t('home.startPipeline') }}
         </router-link>
       </div>
 
       <!-- Quick Stats -->
       <div class="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
-          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Total Jobs</p>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{{ t('home.totalJobs') }}</p>
           <p class="text-2xl font-extrabold text-slate-800">{{ totalJobs }}</p>
         </div>
         <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
-          <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Completed</p>
+          <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">{{ t('home.completed') }}</p>
           <p class="text-2xl font-extrabold text-emerald-700">{{ completedJobs }}</p>
         </div>
         <div class="bg-amber-50 rounded-xl p-4 border border-amber-100 col-span-2 sm:col-span-1">
-          <p class="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Pending</p>
+          <p class="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">{{ t('home.pending') }}</p>
           <p class="text-2xl font-extrabold text-amber-700">{{ pendingJobs }}</p>
         </div>
       </div>
@@ -51,7 +51,7 @@
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
         </svg>
         <div>
-          <p class="text-sm font-bold text-indigo-800">Pipeline Running</p>
+          <p class="text-sm font-bold text-indigo-800">{{ t('home.pipelineRunning') }}</p>
           <p class="text-xs text-indigo-600 font-mono mt-0.5">{{ pipeline.folderName }}</p>
         </div>
       </div>
@@ -59,7 +59,7 @@
         to="/pipeline"
         class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-white border border-indigo-200 px-3 py-1.5 rounded-lg transition"
       >
-        View Progress →
+        {{ t('home.viewPipeline') }}
       </router-link>
     </div>
 
@@ -72,7 +72,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
           </div>
-          <h2 class="text-sm font-bold text-slate-800">Recent Jobs</h2>
+          <h2 class="text-sm font-bold text-slate-800">{{ t('home.recentJobs') }}</h2>
         </div>
         <router-link
           to="/history"
@@ -111,8 +111,8 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
           </svg>
         </div>
-        <h3 class="text-sm font-bold text-slate-700 mb-1">No jobs yet</h3>
-        <p class="text-xs text-slate-400 mb-4">Process your first audio file to get started.</p>
+        <h3 class="text-sm font-bold text-slate-700 mb-1">{{ t('home.noJobsYet') }}</h3>
+        <p class="text-xs text-slate-400 mb-4">{{ t('home.startFirstJob') }}</p>
         <router-link
           to="/pipeline"
           class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition"
@@ -121,7 +121,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
-          Start Pipeline
+          {{ t('home.startPipeline') }}
         </router-link>
       </div>
 
@@ -165,8 +165,8 @@
           </svg>
         </div>
         <div>
-          <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-700 transition">New Pipeline</p>
-          <p class="text-xs text-slate-400 mt-0.5">Upload or record audio to process</p>
+          <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-700 transition">{{ t('pipeline.title') }}</p>
+          <p class="text-xs text-slate-400 mt-0.5">{{ t('pipeline.subtitle') }}</p>
         </div>
       </router-link>
 
@@ -180,8 +180,8 @@
           </svg>
         </div>
         <div>
-          <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-700 transition">Full History</p>
-          <p class="text-xs text-slate-400 mt-0.5">Browse and manage all your jobs</p>
+          <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-700 transition">{{ t('history.title') }}</p>
+          <p class="text-xs text-slate-400 mt-0.5">{{ t('history.subtitle') }}</p>
         </div>
       </router-link>
     </div>
@@ -194,10 +194,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/appStore'
 import { getHistory } from '../services/api.js'
+import { useI18n } from '../i18n/index.js'
 
 const store = useAppStore()
 const router = useRouter()
 const pipeline = store.state.pipeline
+const { t } = useI18n()
 
 // ── Pipeline banner ────────────────────────────────────────────────────
 const showPipelineBanner = computed(() =>
@@ -214,9 +216,10 @@ const userName = computed(() => store.state.user?.name || '')
 
 const timeOfDay = computed(() => {
   const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 18) return 'Good afternoon'
-  return 'Good evening'
+  if (h < 6) return t('home.night')
+  if (h < 12) return t('home.morning')
+  if (h < 18) return t('home.afternoon')
+  return t('home.evening')
 })
 
 // ── Stats helpers ─────────────────────────────────────────────────────

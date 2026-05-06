@@ -686,9 +686,11 @@ import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { getJob, getDownloadUrl, summarizeJob, visualizeJob, translateJob, generateFlashcards, sendChatMessage } from '../services/api'
 import { useAppStore } from '../stores/appStore'
+import { useI18n } from '../i18n/index.js'
 
 const route = useRoute()
 const store = useAppStore()
+const { t } = useI18n()
 
 const TRANSLATE_LANGUAGES = [
   { code: 'Acehnese', label: 'Acehnese' },

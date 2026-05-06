@@ -4,8 +4,8 @@
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 class="text-xl font-extrabold text-slate-900">Audio Pipeline</h1>
-          <p class="text-sm text-slate-500 mt-1">Upload → Transcribe → Summarize → Visualize</p>
+          <h1 class="text-xl font-extrabold text-slate-900">{{ t('pipeline.title') }}</h1>
+          <p class="text-sm text-slate-500 mt-1">{{ t('pipeline.subtitle') }}</p>
         </div>
         <span
           class="self-start md:self-auto px-3 py-1 rounded-lg text-xs font-bold uppercase"
@@ -32,7 +32,7 @@
         </svg>
       </span>
       <div class="flex-1">
-        <p class="text-sm font-semibold text-red-700">Pipeline Error</p>
+        <p class="text-sm font-semibold text-red-700">{{ t('pipeline.pipelineError') }}</p>
         <p class="text-xs text-red-600 mt-1 font-mono break-all">{{ pipeline.lastError }}</p>
       </div>
       <button
@@ -47,7 +47,7 @@
       v-if="pipeline.currentStep === 1 || !pipeline.folderName"
       class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6"
     >
-      <h2 class="text-base font-bold text-slate-900 mb-4">1. Provide Audio</h2>
+      <h2 class="text-base font-bold text-slate-900 mb-4">{{ t('pipeline.provideAudio') }}</h2>
 
       <!-- Mode Toggle -->
       <div class="flex rounded-xl overflow-hidden border border-slate-200 mb-5 text-sm font-semibold">
@@ -61,7 +61,7 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
           </svg>
-          Upload File
+          {{ t('pipeline.uploadFile') }}
         </button>
         <button
           @click="switchMode('record')"
@@ -73,7 +73,7 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
           </svg>
-          Record Audio
+          {{ t('pipeline.recordAudio') }}
         </button>
       </div>
 
@@ -468,9 +468,11 @@ import Stepper from '../components/Stepper.vue'
 import AudioSpectrum from '../components/AudioSpectrum.vue'
 import { useAppStore } from '../stores/appStore'
 import * as api from '../services/api.js'
+import { useI18n } from '../i18n/index.js'
 
 const store = useAppStore()
 const pipeline = store.state.pipeline
+const { t } = useI18n()
 
 const fileInputRef = ref(null)
 const selectedFile = ref(null)

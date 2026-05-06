@@ -8,44 +8,44 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
           </svg>
         </div>
-        <h1 class="text-2xl font-extrabold text-slate-900">Create an account</h1>
-        <p class="text-slate-500 text-sm mt-2">Join Record Note today</p>
+        <h1 class="text-2xl font-extrabold text-slate-900">{{ t('signup.title') }}</h1>
+        <p class="text-slate-500 text-sm mt-2">{{ t('signup.subtitle') }}</p>
       </div>
 
       <form @submit.prevent="handleSignup" class="space-y-4">
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Full Name</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('signup.fullName') }}</label>
           <input
             v-model="name"
             type="text"
             required
             autocomplete="name"
-            placeholder="Your name"
+            :placeholder="t('signup.fullNamePlaceholder')"
             class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
 
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Email</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('signup.email') }}</label>
           <input
             v-model="email"
             type="email"
             required
             autocomplete="email"
-            placeholder="you@example.com"
+            :placeholder="t('signup.emailPlaceholder')"
             class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
 
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Password</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('signup.password') }}</label>
           <div class="relative">
             <input
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
               required
               autocomplete="new-password"
-              placeholder="Min. 8 characters"
+              :placeholder="t('signup.passwordPlaceholder')"
               minlength="8"
               class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 pr-10"
             />
@@ -54,23 +54,23 @@
               @click="showPassword = !showPassword"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-semibold"
             >
-              {{ showPassword ? 'Hide' : 'Show' }}
+              {{ showPassword ? t('signup.hide') : t('signup.show') }}
             </button>
           </div>
         </div>
 
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Confirm Password</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('signup.confirmPassword') }}</label>
           <input
             v-model="confirmPassword"
             :type="showPassword ? 'text' : 'password'"
             required
             autocomplete="new-password"
-            placeholder="Re-enter password"
+            :placeholder="t('signup.confirmPasswordPlaceholder')"
             class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             :class="{ 'border-red-400 focus:ring-red-400': passwordMismatch }"
           />
-          <p v-if="passwordMismatch" class="text-xs text-red-600 mt-1">Passwords do not match.</p>
+          <p v-if="passwordMismatch" class="text-xs text-red-600 mt-1">{{ t('signup.passwordMismatch') }}</p>
         </div>
 
         <button
@@ -82,7 +82,7 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
           </svg>
-          {{ loading ? 'Creating account…' : 'Create Account' }}
+          {{ loading ? t('signup.creating') : t('signup.createAccount') }}
         </button>
       </form>
 
@@ -97,8 +97,8 @@
       </div>
 
       <p class="text-center text-sm text-slate-500 mt-5">
-        Already have an account?
-        <router-link to="/login" class="text-indigo-600 hover:text-indigo-800 font-semibold">Sign in</router-link>
+        {{ t('signup.haveAccount') }}
+        <router-link to="/login" class="text-indigo-600 hover:text-indigo-800 font-semibold">{{ t('signup.signIn') }}</router-link>
       </p>
     </div>
   </div>
@@ -108,8 +108,10 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { registerBasic } from '../services/authService'
+import { useI18n } from '../i18n/index.js'
 
 const router = useRouter()
+const { t } = useI18n()
 const name = ref('')
 const email = ref('')
 const password = ref('')

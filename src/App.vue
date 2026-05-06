@@ -10,7 +10,7 @@
           <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
           </svg>
-          <span class="text-xl font-extrabold text-slate-900">Record Note</span>
+          <span class="text-xl font-extrabold text-slate-900">{{ t('nav.appName') }}</span>
         </router-link>
 
         <!-- Desktop nav links -->
@@ -32,7 +32,7 @@
             @click="handleLogout"
             class="ml-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg transition text-xs"
           >
-            Sign Out
+            {{ t('nav.signOut') }}
           </button>
         </div>
 
@@ -40,7 +40,7 @@
         <button
           class="md:hidden p-2 rounded-lg hover:bg-slate-100 transition"
           @click="mobileMenuOpen = !mobileMenuOpen"
-          aria-label="Toggle menu"
+          :aria-label="t('nav.toggleMenu')"
         >
           <svg v-if="!mobileMenuOpen" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
@@ -66,13 +66,13 @@
         </router-link>
         <div class="pt-2 border-t border-slate-100">
           <div v-if="store.state.user" class="text-xs text-slate-500 px-3 py-1">
-            Signed in as <span class="font-semibold">{{ store.state.user.name }}</span>
+            {{ t('nav.signedInAs') }} <span class="font-semibold">{{ store.state.user.name }}</span>
           </div>
           <button
             @click="handleLogout"
             class="w-full text-left py-2 px-3 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50 transition mt-1"
           >
-            Sign Out
+            {{ t('nav.signOut') }}
           </button>
         </div>
       </div>
@@ -113,16 +113,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from './stores/appStore'
 import { refreshAccessToken } from './services/authService'
 import NavIcon from './components/NavIcon.vue'
+import { useI18n } from './i18n/index.js'
 
 const store = useAppStore()
 const router = useRouter()
 const mobileMenuOpen = ref(false)
 const transitionName = ref('slide-left')
+const { t } = useI18n()
 
 router.beforeEach((to, from) => {
   const toDepth = to.meta.depth ?? 1
@@ -150,12 +152,12 @@ onMounted(async () => {
   }
 })
 
-const navLinks = [
-  { to: '/', label: 'Home', icon: 'home' },
-  { to: '/pipeline', label: 'Pipeline', icon: 'pipeline' },
-  { to: '/history', label: 'History', icon: 'history' },
-  { to: '/settings', label: 'Settings', icon: 'settings' }
-]
+const navLinks = computed(() => [
+  { to: '/', label: t('nav.home'), icon: 'home' },
+  { to: '/pipeline', label: t('nav.pipeline'), icon: 'pipeline' },
+  { to: '/history', label: t('nav.history'), icon: 'history' },
+  { to: '/settings', label: t('nav.settings'), icon: 'settings' }
+])
 
 const handleLogout = () => {
   mobileMenuOpen.value = false

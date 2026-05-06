@@ -3,8 +3,8 @@
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
       <div class="flex items-center justify-between gap-3">
         <div>
-          <h1 class="text-xl font-extrabold text-slate-900">History</h1>
-          <p class="text-sm text-slate-500 mt-1">Your past audio processing jobs.</p>
+          <h1 class="text-xl font-extrabold text-slate-900">{{ t('history.title') }}</h1>
+          <p class="text-sm text-slate-500 mt-1">{{ t('history.subtitle') }}</p>
         </div>
         <div class="flex items-center gap-2">
           <button
@@ -12,14 +12,14 @@
             @click="toggleSelectMode"
             class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-sm transition"
           >
-            {{ selectMode ? 'Cancel' : 'Select' }}
+            {{ selectMode ? t('history.cancel') : t('history.select') }}
           </button>
           <button
             @click="loadHistory"
             :disabled="loading"
             class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-sm transition disabled:opacity-50"
           >
-            {{ loading ? 'Loading…' : 'Refresh' }}
+            {{ loading ? t('history.loading') : t('history.refresh') }}
           </button>
         </div>
       </div>
@@ -29,7 +29,7 @@
         <input
           v-model="searchQuery"
           type="search"
-          placeholder="Search by job name…"
+          :placeholder="t('history.searchPlaceholder')"
           class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50"
         />
       </div>
@@ -48,9 +48,9 @@
           @change="toggleSelectAll"
           class="w-4 h-4 rounded accent-indigo-600"
         />
-        {{ allVisibleSelected ? 'Deselect all' : 'Select all' }}
+        {{ allVisibleSelected ? t('history.deselectAll') : t('history.selectAll') }}
       </label>
-      <span class="text-sm text-slate-400">{{ selectedCount }} selected</span>
+      <span class="text-sm text-slate-400">{{ t('history.selected', { n: selectedCount }) }}</span>
       <div class="flex-1" />
       <button
         @click="confirmDelete"
@@ -60,7 +60,7 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
         </svg>
-        {{ deleting ? 'Deleting…' : `Delete${selectedCount ? ` (${selectedCount})` : ''}` }}
+        {{ deleting ? t('history.deleting') : (selectedCount ? t('history.deleteCount', { n: selectedCount }) : t('history.delete')) }}
       </button>
     </div>
 
@@ -71,20 +71,20 @@
       @click.self="showDeleteConfirm = false"
     >
       <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
-        <h2 class="text-base font-extrabold text-slate-900 mb-2">Delete {{ selectedCount }} job{{ selectedCount !== 1 ? 's' : '' }}?</h2>
-        <p class="text-sm text-slate-500 mb-5">This will permanently remove all files for the selected jobs. This action cannot be undone.</p>
+        <h2 class="text-base font-extrabold text-slate-900 mb-2">{{ selectedCount !== 1 ? t('history.deleteConfirmTitlePlural', { n: selectedCount }) : t('history.deleteConfirmTitle', { n: selectedCount }) }}</h2>
+        <p class="text-sm text-slate-500 mb-5">{{ t('history.deleteConfirmMessage') }}</p>
         <div class="flex gap-3">
           <button
             @click="showDeleteConfirm = false"
             class="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition"
           >
-            Cancel
+            {{ t('history.cancel') }}
           </button>
           <button
             @click="executeDelete"
             class="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition"
           >
-            Delete
+            {{ t('history.delete') }}
           </button>
         </div>
       </div>
@@ -112,16 +112,16 @@
       v-else-if="!loading && !filteredJobs.length && !error"
       class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center"
     >
-      <h3 class="text-base font-bold text-slate-700">{{ searchQuery ? 'No matching jobs' : 'No jobs yet' }}</h3>
+      <h3 class="text-base font-bold text-slate-700">{{ searchQuery ? t('history.noMatchingJobs') : t('history.noJobsYet') }}</h3>
       <p class="text-sm text-slate-400 mt-1">
-        {{ searchQuery ? 'Try a different search term.' : 'Process your first audio file on the Home page.' }}
+        {{ searchQuery ? t('history.tryDifferentSearch') : t('history.processFirstFile') }}
       </p>
       <router-link
         v-if="!searchQuery"
         to="/"
         class="inline-block mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition"
       >
-        Go to Pipeline →
+        {{ t('history.goToPipeline') }}
       </router-link>
     </div>
 
@@ -166,9 +166,9 @@
               :disabled="reRunning[job.folder_name]"
               class="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs font-semibold px-2.5 py-1 rounded-lg transition"
             >
-              {{ reRunning[job.folder_name] ? 'Running…' : 'Re-run' }}
+            {{ reRunning[job.folder_name] ? t('history.rerunning') : t('history.rerun') }}
             </button>
-            <span class="text-xs text-indigo-600 font-semibold">Open</span>
+            <span class="text-xs text-indigo-600 font-semibold">{{ t('history.open') }}</span>
           </div>
         </div>
       </div>
@@ -181,9 +181,11 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getHistory, summarizeJob, visualizeJob, deleteJobs } from '../services/api.js'
 import { useAppStore } from '../stores/appStore'
+import { useI18n } from '../i18n/index.js'
 
 const router = useRouter()
 const store = useAppStore()
+const { t } = useI18n()
 
 const jobs = ref(Array.isArray(store.state.historyCache) ? [...store.state.historyCache] : [])
 const loading = ref(false)
@@ -330,7 +332,7 @@ const loadHistory = async () => {
     const cached = Array.isArray(store.state.historyCache) ? store.state.historyCache : []
     if (cached.length) {
       jobs.value = [...cached]
-      error.value = 'Offline mode: showing saved history from this device.'
+      error.value = t('history.offlineMode')
     } else {
       error.value = err.message
     }

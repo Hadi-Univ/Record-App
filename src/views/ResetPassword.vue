@@ -8,7 +8,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
           </svg>
         </div>
-        <h1 class="text-2xl font-extrabold text-slate-900">Reset Password</h1>
+        <h1 class="text-2xl font-extrabold text-slate-900">{{ t('resetPassword.title') }}</h1>
         <p class="text-slate-500 text-sm mt-2">Enter your new password below.</p>
       </div>
 
@@ -23,14 +23,14 @@
 
       <form v-else-if="!done" @submit.prevent="handleSubmit" class="space-y-4">
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">New Password</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('resetPassword.newPassword') }}</label>
           <div class="relative">
             <input
               v-model="newPassword"
               :type="showPassword ? 'text' : 'password'"
               required
               autocomplete="new-password"
-              placeholder="Min. 8 characters"
+              :placeholder="t('resetPassword.newPasswordPlaceholder')"
               minlength="8"
               class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 pr-10"
             />
@@ -39,23 +39,23 @@
               @click="showPassword = !showPassword"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-semibold"
             >
-              {{ showPassword ? 'Hide' : 'Show' }}
+              {{ showPassword ? t('signup.hide') : t('signup.show') }}
             </button>
           </div>
         </div>
 
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Confirm New Password</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('resetPassword.confirmPassword') }}</label>
           <input
             v-model="confirmPassword"
             :type="showPassword ? 'text' : 'password'"
             required
             autocomplete="new-password"
-            placeholder="Re-enter new password"
+            :placeholder="t('resetPassword.confirmPasswordPlaceholder')"
             class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             :class="{ 'border-red-400 focus:ring-red-400': passwordMismatch }"
           />
-          <p v-if="passwordMismatch" class="text-xs text-red-600 mt-1">Passwords do not match.</p>
+          <p v-if="passwordMismatch" class="text-xs text-red-600 mt-1">{{ t('resetPassword.passwordMismatch') }}</p>
         </div>
 
         <button
@@ -67,7 +67,7 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
           </svg>
-          {{ loading ? 'Resetting…' : 'Reset Password' }}
+          {{ loading ? t('resetPassword.resetting') : t('resetPassword.resetPassword') }}
         </button>
       </form>
 
@@ -94,8 +94,10 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { resetPassword } from '../services/authService'
+import { useI18n } from '../i18n/index.js'
 
 const route = useRoute()
+const { t } = useI18n()
 const resetToken = route.query.token || ''
 const newPassword = ref('')
 const confirmPassword = ref('')

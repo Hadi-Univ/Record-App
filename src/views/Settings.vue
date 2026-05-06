@@ -2,17 +2,40 @@
   <div class="max-w-2xl mx-auto space-y-6 pb-4">
     <!-- Header -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-      <h1 class="text-xl font-extrabold text-slate-900">Settings</h1>
-      <p class="text-sm text-slate-500 mt-1">Configure your LLM provider and API connection.</p>
+      <h1 class="text-xl font-extrabold text-slate-900">{{ t('settings.title') }}</h1>
+      <p class="text-sm text-slate-500 mt-1">{{ t('settings.subtitle') }}</p>
+    </div>
+
+    <!-- Language Settings -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+      <h2 class="text-base font-bold text-slate-900">{{ t('settings.language') }}</h2>
+      <div class="space-y-1">
+        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">
+          {{ t('settings.selectLanguage') }}
+        </label>
+        <select
+          :value="locale"
+          @change="setLocale($event.target.value)"
+          class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option
+            v-for="loc in availableLocales"
+            :key="loc.code"
+            :value="loc.code"
+          >
+            {{ loc.label }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <!-- LLM Provider Settings -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5">
-      <h2 class="text-base font-bold text-slate-900">LLM Provider</h2>
+      <h2 class="text-base font-bold text-slate-900">{{ t('settings.llmProvider') }}</h2>
 
       <div class="space-y-1">
         <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">
-          Provider
+          {{ t('settings.provider') }}
         </label>
         <select
           v-model="settings.provider"
@@ -28,8 +51,8 @@
 
       <div class="space-y-1">
         <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">
-          Model Name
-          <span class="text-slate-400 font-normal normal-case ml-1">(optional — uses provider default)</span>
+          {{ t('settings.modelName') }}
+          <span class="text-slate-400 font-normal normal-case ml-1">{{ t('settings.modelNameHint') }}</span>
         </label>
         <input
           type="text"
@@ -41,8 +64,8 @@
 
       <div class="space-y-1">
         <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">
-          API Key
-          <span class="text-slate-400 font-normal normal-case ml-1">(leave blank for local providers)</span>
+          {{ t('settings.apiKey') }}
+          <span class="text-slate-400 font-normal normal-case ml-1">{{ t('settings.apiKeyHint') }}</span>
         </label>
         <div class="relative">
           <input
@@ -56,7 +79,7 @@
             @click="showApiKey = !showApiKey"
             class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition text-xs font-semibold"
           >
-            {{ showApiKey ? 'Hide' : 'Show' }}
+            {{ showApiKey ? t('settings.hide') : t('settings.show') }}
           </button>
         </div>
       </div>
@@ -67,11 +90,11 @@
       v-if="store.state.authMethod === 'api'"
       class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5"
     >
-      <h2 class="text-base font-bold text-slate-900">Backend Connection</h2>
+      <h2 class="text-base font-bold text-slate-900">{{ t('settings.backendConnection') }}</h2>
 
       <div class="space-y-1">
         <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">
-          API Base URL
+          {{ t('settings.apiBaseUrl') }}
         </label>
         <input
           type="url"
@@ -79,7 +102,7 @@
           placeholder="http://localhost:8000 (leave blank to use dev proxy)"
           class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
         />
-        <p class="text-xs text-slate-400">Base URL of your backend. Leave blank when using the Vite dev-server proxy.</p>
+        <p class="text-xs text-slate-400">{{ t('settings.apiBaseUrlHint') }}</p>
       </div>
 
       <button
@@ -91,7 +114,7 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
-        {{ testing ? 'Testing…' : 'Test Connection' }}
+        {{ testing ? t('settings.testing') : t('settings.testConnection') }}
       </button>
 
       <div
@@ -116,7 +139,7 @@
       v-if="store.state.user"
       class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6"
     >
-      <h2 class="text-base font-bold text-slate-900 mb-3">Account</h2>
+      <h2 class="text-base font-bold text-slate-900 mb-3">{{ t('settings.account') }}</h2>
       <div class="flex items-center gap-3">
         <img
           v-if="store.state.user.picture"
@@ -142,18 +165,18 @@
       v-if="store.state.authMethod === 'basic'"
       class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4"
     >
-      <h2 class="text-base font-bold text-slate-900">Change Password</h2>
+      <h2 class="text-base font-bold text-slate-900">{{ t('settings.changePassword') }}</h2>
 
       <form @submit.prevent="handleChangePassword" class="space-y-4">
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Current Password</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('settings.currentPassword') }}</label>
           <div class="relative">
             <input
               v-model="currentPassword"
               :type="showPasswords ? 'text' : 'password'"
               required
               autocomplete="current-password"
-              placeholder="Your current password"
+              :placeholder="t('settings.currentPasswordPlaceholder')"
               class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 pr-10"
             />
             <button
@@ -161,36 +184,36 @@
               @click="showPasswords = !showPasswords"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-semibold"
             >
-              {{ showPasswords ? 'Hide' : 'Show' }}
+              {{ showPasswords ? t('settings.hide') : t('settings.show') }}
             </button>
           </div>
         </div>
 
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">New Password</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('settings.newPassword') }}</label>
           <input
             v-model="newPassword"
             :type="showPasswords ? 'text' : 'password'"
             required
             autocomplete="new-password"
-            placeholder="Min. 8 characters"
+            :placeholder="t('settings.newPasswordPlaceholder')"
             minlength="8"
             class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
 
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Confirm New Password</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('settings.confirmNewPassword') }}</label>
           <input
             v-model="confirmNewPassword"
             :type="showPasswords ? 'text' : 'password'"
             required
             autocomplete="new-password"
-            placeholder="Re-enter new password"
+            :placeholder="t('settings.confirmNewPasswordPlaceholder')"
             class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             :class="{ 'border-red-400 focus:ring-red-400': changePasswordMismatch }"
           />
-          <p v-if="changePasswordMismatch" class="text-xs text-red-600 mt-1">Passwords do not match.</p>
+          <p v-if="changePasswordMismatch" class="text-xs text-red-600 mt-1">{{ t('settings.passwordMismatch') }}</p>
         </div>
 
         <button
@@ -202,7 +225,7 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
           </svg>
-          {{ changingPassword ? 'Updating…' : 'Update Password' }}
+          {{ changingPassword ? t('settings.updating') : t('settings.updatePassword') }}
         </button>
       </form>
 
@@ -226,7 +249,7 @@
     <!-- Auto-save note -->
     <p class="text-xs text-slate-400 text-center pb-2 flex items-center justify-center gap-1">
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-      Settings are saved automatically to your device.
+      {{ t('settings.autoSaveNote') }}
     </p>
   </div>
 </template>
@@ -235,9 +258,11 @@
 import { ref, computed } from 'vue'
 import { useAppStore } from '../stores/appStore'
 import { changePassword } from '../services/authService'
+import { useI18n } from '../i18n/index.js'
 
 const store = useAppStore()
 const settings = store.state.settings
+const { t, locale, setLocale, availableLocales } = useI18n()
 
 const showApiKey = ref(false)
 const testing = ref(false)
@@ -261,12 +286,12 @@ const handleChangePassword = async () => {
   changePasswordStatus.value = null
   try {
     await changePassword(currentPassword.value, newPassword.value)
-    changePasswordStatus.value = { ok: true, message: 'Password updated successfully!' }
+    changePasswordStatus.value = { ok: true, message: t('settings.passwordUpdated') }
     currentPassword.value = ''
     newPassword.value = ''
     confirmNewPassword.value = ''
   } catch (err) {
-    changePasswordStatus.value = { ok: false, message: err.message || 'Failed to update password.' }
+    changePasswordStatus.value = { ok: false, message: err.message || t('settings.passwordFailed') }
   } finally {
     changingPassword.value = false
   }
@@ -290,12 +315,12 @@ const testConnection = async () => {
     const baseUrl = store.getBaseUrl()
     const response = await fetch(`${baseUrl}/api/v1/health`, { signal: AbortSignal.timeout(5000) })
     if (response.ok) {
-      connectionStatus.value = { ok: true, message: 'Connected successfully!' }
+      connectionStatus.value = { ok: true, message: t('settings.connectedSuccessfully') }
     } else {
-      connectionStatus.value = { ok: false, message: `Server responded with status ${response.status}` }
+      connectionStatus.value = { ok: false, message: t('settings.connectionStatus', { status: response.status }) }
     }
   } catch (err) {
-    connectionStatus.value = { ok: false, message: `Could not reach server: ${err.message}` }
+    connectionStatus.value = { ok: false, message: t('settings.connectionFailed', { error: err.message }) }
   } finally {
     testing.value = false
   }
