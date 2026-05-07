@@ -36,7 +36,7 @@
           @click="mobileMenuOpen = !mobileMenuOpen"
           :aria-label="t('nav.toggleMenu')"
         >
-          <span class="truncate">{{ store.state.user?.name || t('nav.settings') }}</span>
+          <span class="truncate">{{ store.state.user?.name || t('settings.account') }}</span>
           <svg
             class="w-4 h-4 shrink-0 transition-transform"
             :class="{ 'rotate-180': mobileMenuOpen }"
