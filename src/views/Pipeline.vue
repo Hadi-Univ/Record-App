@@ -720,8 +720,6 @@ const statusBadgeClass = computed(() => {
   return 'bg-slate-100 text-slate-500'
 })
 
-// Short label for the status badge — shows "running" while in flight so the badge
-// stays concise; the detailed sub-step description is shown separately below the stepper.
 const statusBadgeLabel = computed(() => pipeline.status)
 
 const onFileChange = (e) => {
