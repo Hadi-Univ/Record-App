@@ -394,6 +394,41 @@ describe('translateJob', () => {
   })
 })
 
+describe('saveTranscript', () => {
+  it('POSTs to /api/v1/transcript/save with transcript_data', async () => {
+    const result = { message: 'Transcript saved', segment_count: 2 }
+    global.fetch = vi.fn().mockResolvedValue(makeResponse(result))
+    const transcriptData = [
+      { speaker: 0, start: 0, end: 2, text: 'hello' },
+      { speaker: 1, start: 2, end: 4, text: 'world' }
+    ]
+
+    const data = await api.saveTranscript('job_1', 'audio', transcriptData)
+
+    const [url, opts] = global.fetch.mock.calls[0]
+    expect(url).toBe('https://api.example.com/api/v1/transcript/save')
+    expect(opts.method).toBe('POST')
+    const body = JSON.parse(opts.body)
+    expect(body.google_token).toBe('test-token')
+    expect(body.folder_name).toBe('job_1')
+    expect(body.file_name).toBe('audio')
+    expect(body.transcript_data).toEqual(transcriptData)
+    expect(data).toEqual(result)
+  })
+
+  it('sends empty array when transcriptData is not an array', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse({ message: 'ok' }))
+    await api.saveTranscript('job_1', 'audio', null)
+    const body = JSON.parse(global.fetch.mock.calls[0][1].body)
+    expect(body.transcript_data).toEqual([])
+  })
+
+  it('throws an error on non-ok response', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse('Bad request', false, 400))
+    await expect(api.saveTranscript('job_1', 'audio', [])).rejects.toThrow('Transcript save failed (400)')
+  })
+})
+
 describe('generateFlashcards', () => {
   it('POSTs to /api/v1/flashcards with correct JSON body', async () => {
     const result = { message: 'Flashcards generated', file_name: 'audio', flashcards: [{ front: 'Q1', back: 'A1', type: 'qa', timestamp: '00:01:00' }] }
