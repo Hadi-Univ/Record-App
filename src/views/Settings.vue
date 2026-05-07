@@ -160,6 +160,8 @@
       </div>
       <button
         @click="handleLogout"
+        :aria-label="t('nav.signOut')"
+        :title="t('nav.signOut')"
         class="w-full md:w-auto bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-4 py-2.5 rounded-xl text-sm transition"
       >
         {{ t('nav.signOut') }}

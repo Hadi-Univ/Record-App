@@ -34,7 +34,7 @@
         <button
           class="md:hidden px-3 py-2 rounded-lg hover:bg-slate-100 transition text-sm font-semibold text-slate-700 flex items-center gap-1.5 max-w-[70vw]"
           @click="mobileMenuOpen = !mobileMenuOpen"
-          :aria-label="t('nav.toggleMenu')"
+          :aria-label="`${t('settings.account')} ${t('nav.toggleMenu').toLowerCase()}`"
         >
           <span class="truncate">{{ store.state.user?.name || t('settings.account') }}</span>
           <svg
