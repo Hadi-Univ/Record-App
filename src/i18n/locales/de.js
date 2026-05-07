@@ -141,7 +141,18 @@ export default {
     passwordFailed: 'Passwort-Aktualisierung fehlgeschlagen.',
     autoSaveNote: 'Einstellungen werden automatisch auf Ihrem Gerät gespeichert.',
     language: 'Sprache',
-    selectLanguage: 'Anzeigesprache auswählen'
+    selectLanguage: 'Anzeigesprache auswählen',
+    creatorsTitle: 'Ersteller',
+    creatorsSubtitle: 'Mitwirkende an diesem Repository.',
+    creatorsLoading: 'Mitwirkende werden geladen…',
+    creatorsEmpty: 'Keine Mitwirkenden gefunden.',
+    creatorsLoadFailedStatus: 'Mitwirkende konnten nicht geladen werden (Status {status}).',
+    creatorsLoadTimedOut: 'Zeitüberschreitung bei der Anfrage. Bitte Verbindung prüfen und erneut versuchen.',
+    creatorsLoadFailedGeneric: 'Mitwirkende konnten nicht geladen werden.',
+    unknownContributor: 'Unbekannter Mitwirkender',
+    viewProfile: 'Profil anzeigen',
+    retry: 'Erneut versuchen',
+    apiBackendRepository: 'API-Backend-Repository öffnen'
   },
   login: {
     appName: 'Record Note',

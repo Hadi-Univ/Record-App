@@ -141,7 +141,18 @@ export default {
     passwordFailed: 'فشل تحديث كلمة المرور.',
     autoSaveNote: 'يتم حفظ الإعدادات تلقائيًا على جهازك.',
     language: 'اللغة',
-    selectLanguage: 'اختر لغة العرض'
+    selectLanguage: 'اختر لغة العرض',
+    creatorsTitle: 'المنشئون',
+    creatorsSubtitle: 'المساهمون في هذا المستودع.',
+    creatorsLoading: 'جارٍ تحميل المساهمين…',
+    creatorsEmpty: 'لم يتم العثور على مساهمين.',
+    creatorsLoadFailedStatus: 'فشل تحميل المساهمين (الحالة {status}).',
+    creatorsLoadTimedOut: 'انتهت مهلة الطلب. تحقّق من اتصالك ثم حاول مرة أخرى.',
+    creatorsLoadFailedGeneric: 'فشل تحميل المساهمين.',
+    unknownContributor: 'مساهم غير معروف',
+    viewProfile: 'عرض الملف الشخصي',
+    retry: 'إعادة المحاولة',
+    apiBackendRepository: 'فتح مستودع واجهة API الخلفية'
   },
   login: {
     appName: 'Record Note',

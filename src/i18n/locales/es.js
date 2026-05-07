@@ -141,7 +141,18 @@ export default {
     passwordFailed: 'Error al actualizar la contraseña.',
     autoSaveNote: 'Los ajustes se guardan automáticamente en tu dispositivo.',
     language: 'Idioma',
-    selectLanguage: 'Selecciona tu idioma de visualización'
+    selectLanguage: 'Selecciona tu idioma de visualización',
+    creatorsTitle: 'Creadores',
+    creatorsSubtitle: 'Colaboradores de este repositorio.',
+    creatorsLoading: 'Cargando colaboradores…',
+    creatorsEmpty: 'No se encontraron colaboradores.',
+    creatorsLoadFailedStatus: 'No se pudieron cargar los colaboradores (estado {status}).',
+    creatorsLoadTimedOut: 'La solicitud excedió el tiempo de espera. Revisa tu conexión e inténtalo de nuevo.',
+    creatorsLoadFailedGeneric: 'No se pudieron cargar los colaboradores.',
+    unknownContributor: 'Colaborador desconocido',
+    viewProfile: 'Ver perfil',
+    retry: 'Reintentar',
+    apiBackendRepository: 'Abrir repositorio del backend API'
   },
   login: {
     appName: 'Record Note',

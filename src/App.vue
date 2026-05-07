@@ -28,25 +28,23 @@
           <div v-if="store.state.user" class="flex items-center gap-2 text-xs text-slate-500">
             <span>{{ store.state.user.name }}</span>
           </div>
-          <button
-            @click="handleLogout"
-            class="ml-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg transition text-xs"
-          >
-            {{ t('nav.signOut') }}
-          </button>
         </div>
 
-        <!-- Mobile hamburger -->
+        <!-- Mobile user menu trigger -->
         <button
-          class="md:hidden p-2 rounded-lg hover:bg-slate-100 transition"
+          class="md:hidden px-3 py-2 rounded-lg hover:bg-slate-100 transition text-sm font-semibold text-slate-700 flex items-center gap-1.5 max-w-[70vw]"
           @click="mobileMenuOpen = !mobileMenuOpen"
-          :aria-label="t('nav.toggleMenu')"
+          :aria-label="`${t('settings.account')} ${t('nav.toggleMenu').toLowerCase()}`"
         >
-          <svg v-if="!mobileMenuOpen" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-          <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          <span class="truncate">{{ store.state.user?.name || t('settings.account') }}</span>
+          <svg
+            class="w-4 h-4 shrink-0 transition-transform"
+            :class="{ 'rotate-180': mobileMenuOpen }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
           </svg>
         </button>
       </div>
@@ -68,12 +66,6 @@
           <div v-if="store.state.user" class="text-xs text-slate-500 px-3 py-1">
             {{ t('nav.signedInAs') }} <span class="font-semibold">{{ store.state.user.name }}</span>
           </div>
-          <button
-            @click="handleLogout"
-            class="w-full text-left py-2 px-3 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50 transition mt-1"
-          >
-            {{ t('nav.signOut') }}
-          </button>
         </div>
       </div>
     </nav>
@@ -159,11 +151,6 @@ const navLinks = computed(() => [
   { to: '/settings', label: t('nav.settings'), icon: 'settings' }
 ])
 
-const handleLogout = () => {
-  mobileMenuOpen.value = false
-  store.logout()
-  router.push('/login')
-}
 </script>
 
 <style>

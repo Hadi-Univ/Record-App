@@ -137,7 +137,7 @@
     <!-- User Info -->
     <div
       v-if="store.state.user"
-      class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6"
+      class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4"
     >
       <h2 class="text-base font-bold text-slate-900 mb-3">{{ t('settings.account') }}</h2>
       <div class="flex items-center gap-3">
@@ -158,6 +158,88 @@
           <p class="text-xs text-slate-500">{{ store.state.user.email }}</p>
         </div>
       </div>
+      <button
+        @click="handleLogout"
+        :aria-label="t('nav.signOut')"
+        :title="t('nav.signOut')"
+        class="w-full md:w-auto bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-4 py-2.5 rounded-xl text-sm transition"
+      >
+        {{ t('nav.signOut') }}
+      </button>
+      <a
+        v-if="showApiBackendRepoLink"
+        href="https://github.com/MMOSHII/Record-Note-API"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="w-full md:w-auto inline-flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2.5 rounded-xl text-sm transition"
+      >
+        {{ t('settings.apiBackendRepository') }}
+      </a>
+    </div>
+
+    <!-- Creators -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+      <h2 class="text-base font-bold text-slate-900">{{ t('settings.creatorsTitle') }}</h2>
+      <p class="text-sm text-slate-500">{{ t('settings.creatorsSubtitle') }}</p>
+
+      <div v-if="contributorsLoading" class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 flex items-center gap-2">
+        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        <span>{{ t('settings.creatorsLoading') }}</span>
+      </div>
+
+      <div
+        v-else-if="contributorsError"
+        class="rounded-xl p-3 text-sm font-semibold flex items-center justify-between gap-3 bg-red-50 text-red-700 border border-red-200"
+      >
+        <span>{{ contributorsError }}</span>
+        <button
+          type="button"
+          @click="fetchContributors"
+          class="shrink-0 bg-white hover:bg-red-100 border border-red-200 text-red-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+        >
+          {{ t('settings.retry') }}
+        </button>
+      </div>
+
+      <p v-else-if="contributors.length === 0" class="text-sm text-slate-500">
+        {{ t('settings.creatorsEmpty') }}
+      </p>
+
+      <ul v-else class="space-y-2">
+        <li
+          v-for="contributor in contributors"
+          :key="contributor.id"
+          class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <img
+              v-if="contributor.avatarUrl"
+              :src="contributor.avatarUrl"
+              :alt="contributor.name"
+              class="w-8 h-8 rounded-full"
+            />
+            <div
+              v-else
+              class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0"
+            >
+              {{ contributor.fallbackInitial }}
+            </div>
+            <span class="text-sm font-medium text-slate-800 truncate">{{ contributor.name }}</span>
+          </div>
+          <a
+            v-if="contributor.profileUrl"
+            :href="contributor.profileUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition shrink-0"
+          >
+            {{ t('settings.viewProfile') }}
+          </a>
+        </li>
+      </ul>
     </div>
 
     <!-- Change Password (basic-auth users only) -->
@@ -255,18 +337,26 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/appStore'
 import { changePassword } from '../services/authService'
 import { useI18n } from '../i18n/index.js'
 
 const store = useAppStore()
+const router = useRouter()
 const settings = store.state.settings
 const { t, locale, setLocale, availableLocales } = useI18n()
+const API_USER_ROLE = 'api user'
+const GITHUB_CONTRIBUTORS_URL = 'https://api.github.com/repos/Hadi-Univ/Record-App/contributors'
+const GITHUB_API_TIMEOUT_MS = 5000
 
 const showApiKey = ref(false)
 const testing = ref(false)
 const connectionStatus = ref(null)
+const contributors = ref([])
+const contributorsLoading = ref(false)
+const contributorsError = ref('')
 
 // Change password
 const showPasswords = ref(false)
@@ -308,6 +398,54 @@ const modelPlaceholder = computed(() => {
   return map[settings.provider] || 'Model name'
 })
 
+const showApiBackendRepoLink = computed(() => {
+  const role = (store.state.user?.role || '').toLowerCase().trim()
+  return role === API_USER_ROLE || store.state.authMethod === 'api'
+})
+
+const handleLogout = () => {
+  store.logout()
+  router.push('/login')
+}
+
+const fetchContributors = async () => {
+  contributorsLoading.value = true
+  contributorsError.value = ''
+  try {
+    const response = await fetch(GITHUB_CONTRIBUTORS_URL, {
+      headers: { Accept: 'application/vnd.github+json' },
+      signal: AbortSignal.timeout(GITHUB_API_TIMEOUT_MS)
+    })
+    if (!response.ok) {
+      throw new Error(t('settings.creatorsLoadFailedStatus', { status: response.status }))
+    }
+
+    const data = await response.json()
+    const unknownContributor = t('settings.unknownContributor')
+    contributors.value = Array.isArray(data)
+      ? data.map((contributor, index) => {
+        const name = contributor.login || unknownContributor
+        return {
+          id: contributor.id ?? `contributor-${index}`,
+          name,
+          avatarUrl: contributor.avatar_url || '',
+          profileUrl: contributor.html_url || '',
+          fallbackInitial: name.charAt(0).toUpperCase()
+        }
+      })
+      : []
+  } catch (err) {
+    if (err?.name === 'TimeoutError') {
+      contributorsError.value = t('settings.creatorsLoadTimedOut')
+    } else {
+      contributorsError.value = t('settings.creatorsLoadFailedGeneric')
+    }
+    contributors.value = []
+  } finally {
+    contributorsLoading.value = false
+  }
+}
+
 const testConnection = async () => {
   testing.value = true
   connectionStatus.value = null
@@ -325,4 +463,8 @@ const testConnection = async () => {
     testing.value = false
   }
 }
+
+onMounted(() => {
+  fetchContributors()
+})
 </script>

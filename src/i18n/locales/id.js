@@ -141,7 +141,18 @@ export default {
     passwordFailed: 'Gagal memperbarui kata sandi. Silakan coba lagi.',
     autoSaveNote: 'Pengaturan Anda disimpan secara otomatis ke perangkat ini.',
     language: 'Bahasa',
-    selectLanguage: 'Pilih bahasa tampilan yang Anda inginkan'
+    selectLanguage: 'Pilih bahasa tampilan yang Anda inginkan',
+    creatorsTitle: 'Kreator',
+    creatorsSubtitle: 'Kontributor untuk repositori ini.',
+    creatorsLoading: 'Memuat kontributor…',
+    creatorsEmpty: 'Tidak ada kontributor ditemukan.',
+    creatorsLoadFailedStatus: 'Gagal memuat kontributor (status {status}).',
+    creatorsLoadTimedOut: 'Permintaan habis waktu. Periksa koneksi Anda lalu coba lagi.',
+    creatorsLoadFailedGeneric: 'Gagal memuat kontributor.',
+    unknownContributor: 'Kontributor tidak dikenal',
+    viewProfile: 'Lihat profil',
+    retry: 'Coba lagi',
+    apiBackendRepository: 'Buka repositori API backend'
   },
   login: {
     appName: 'Record Note',
