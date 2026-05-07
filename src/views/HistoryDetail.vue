@@ -231,54 +231,7 @@
                 </a>
               </div>
             </div>
-            <!-- Structured summary -->
-            <div v-if="parsedSummary" class="space-y-6">
-              <div class="bg-indigo-50/60 border-l-4 border-indigo-500 rounded-r-xl p-4">
-                <h3 class="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2">Ringkasan Singkat</h3>
-                <p class="text-sm text-slate-700 leading-relaxed">{{ parsedSummary.ringkasan_singkat }}</p>
-              </div>
-              <div>
-                <h3 class="text-sm font-bold text-slate-800 mb-2">Topik Utama</h3>
-                <p class="text-sm text-slate-600 mb-3">{{ parsedSummary.topik_utama }}</p>
-                <div class="flex flex-wrap gap-2">
-                  <span v-for="(tema, index) in parsedSummary.tema_besar" :key="index" class="bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium px-3 py-1 rounded-full">
-                    {{ tema }}
-                  </span>
-                </div>
-              </div>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
-                <div>
-                  <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                    <span class="w-5 h-5 rounded-md bg-amber-100 flex items-center justify-center text-amber-600 text-xs">💡</span>
-                    Insight Penting
-                  </h3>
-                  <ul class="space-y-2">
-                    <li v-for="(insight, index) in parsedSummary.insight" :key="index" class="flex items-start gap-2 text-sm text-slate-600">
-                      <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 mt-2"/>
-                      <span class="leading-relaxed">{{ insight }}</span>
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                    <span class="w-5 h-5 rounded-md bg-emerald-100 flex items-center justify-center text-emerald-600">
-                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                    </span>
-                    Rekomendasi
-                  </h3>
-                  <ul class="space-y-2">
-                    <li v-for="(rek, index) in parsedSummary.rekomendasi" :key="index" class="flex items-start gap-2 text-sm text-slate-600">
-                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 mt-2"/>
-                      <span class="leading-relaxed">{{ rek }}</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            <!-- Raw summary fallback -->
-            <div v-else class="bg-slate-50 rounded-xl p-4 text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
-              {{ detail.summary }}
-            </div>
+            <article class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed markdown-summary" v-html="renderedSummary"></article>
           </div>
           <!-- Empty state with CTA -->
           <div v-else class="flex flex-col items-center justify-center py-12 text-center">
@@ -383,6 +336,11 @@
 
             <div>
               <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Transkrip Percakapan</h3>
+              <div role="status" aria-live="polite">
+                <p v-if="transcriptSaveError" class="text-xs text-red-600 font-semibold mb-2">{{ transcriptSaveError }}</p>
+                <p v-else-if="transcriptSaveLoading" class="text-xs text-slate-500 font-semibold mb-2">Saving transcript changes…</p>
+                <p v-else-if="!transcriptDirty && transcriptData.length" class="text-xs text-emerald-600 font-semibold mb-2">Transcript changes saved.</p>
+              </div>
               <div class="flex flex-col space-y-4 max-h-[600px] overflow-y-auto pr-2 pb-4">
                 <div v-if="filteredTranscript.length === 0" class="text-sm text-slate-400 italic text-center py-4">Data kosong.</div>
                 <div v-for="item in filteredTranscript" :key="item._id"
@@ -684,7 +642,9 @@
 <script setup>
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { getJob, getDownloadUrl, summarizeJob, visualizeJob, translateJob, generateFlashcards, sendChatMessage } from '../services/api'
+import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
+import { getJob, getDownloadUrl, summarizeJob, visualizeJob, translateJob, saveTranscript, generateFlashcards, sendChatMessage } from '../services/api'
 import { useAppStore } from '../stores/appStore'
 import { useI18n } from '../i18n/index.js'
 
@@ -839,6 +799,11 @@ const hasTranscriptContent = computed(() => transcriptData.value.length > 0 || B
 const actionLoading = reactive({ summarize: false, visualize: false })
 const actionError = ref('')
 const actionSuccess = ref('')
+const transcriptSaveLoading = ref(false)
+const transcriptSaveError = ref('')
+const transcriptDirty = ref(false)
+const transcriptEditVersion = ref(0)
+let transcriptSaveTimer = null
 
 // --- Translate state ---
 const translateLoading = ref(false)
@@ -1030,15 +995,22 @@ const speakerSettings = ref({})
 const activeLanguages = ref([])
 const defaultColors = ['#3b82f6', '#f97316', '#22c55e', '#a855f7', '#eab308', '#ef4444']
 
-// Parse JSON summary
-const parsedSummary = computed(() => {
-  if (!detail.value.summary) return null
-  const match = detail.value.summary.match(/```json\n([\s\S]*?)\n```/)
-  if (match && match[1]) {
-    try { return JSON.parse(match[1]) } catch (e) { return null }
-  }
-  return null
+const markdownRenderer = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true
 })
+const defaultValidateLink = markdownRenderer.validateLink.bind(markdownRenderer)
+markdownRenderer.validateLink = (url) => {
+  const normalized = String(url || '').trim().toLowerCase()
+  if (normalized.startsWith('#') || normalized.startsWith('/')) return true
+  if (normalized.startsWith('//')) return false
+  if (!/^(https?:|mailto:)/.test(normalized)) return false
+  return defaultValidateLink(url)
+}
+const renderedSummary = computed(() =>
+  DOMPurify.sanitize(markdownRenderer.render(detail.value.summary || ''))
+)
 
 // Extract available languages directly from the data
 const availableLanguages = computed(() => {
@@ -1087,6 +1059,7 @@ const handleTextEdit = (id, newText) => {
   const item = transcriptData.value.find(d => d._id === id)
   if (item && item.text !== newText) {
     item.text = newText
+    markTranscriptDirty()
   }
 }
 
@@ -1100,6 +1073,7 @@ const deleteSegment = (idToDel) => {
         delete speakerSettings.value[sID]
       }
     })
+    markTranscriptDirty()
   }
 }
 
@@ -1108,6 +1082,7 @@ const deleteSpeaker = (id) => {
   if (confirm(`Peringatan: Anda akan menghapus permanen ${speakerName} dan SEMUA teksnya dari data. Lanjutkan?`)) {
     transcriptData.value = transcriptData.value.filter(d => String(d.speaker) !== String(id))
     delete speakerSettings.value[id]
+    markTranscriptDirty()
   }
 }
 
@@ -1146,6 +1121,52 @@ const resetDashboard = () => {
   activeLanguages.value = []
 }
 
+const persistTranscriptChanges = async () => {
+  if (!fileName.value) return
+  const editVersionSnapshot = transcriptEditVersion.value
+  transcriptSaveLoading.value = true
+  transcriptSaveError.value = ''
+  try {
+    const payload = transcriptData.value.map(({ _id, ...rest }) => ({ ...rest }))
+    await saveTranscript(folderName.value, fileName.value, payload)
+    if (editVersionSnapshot === transcriptEditVersion.value) {
+      transcriptDirty.value = false
+    }
+    saveCachedDetail()
+    if (!selectedLangPair.value) {
+      originalTranscriptData.value = transcriptData.value.map(item => ({ ...item }))
+    }
+  } catch (err) {
+    transcriptSaveError.value = err.message || 'Failed to save transcript changes.'
+  } finally {
+    transcriptSaveLoading.value = false
+  }
+}
+
+const scheduleTranscriptSave = () => {
+  transcriptSaveError.value = ''
+  if (transcriptSaveTimer) clearTimeout(transcriptSaveTimer)
+  transcriptSaveTimer = setTimeout(() => {
+    transcriptSaveTimer = null
+    persistTranscriptChanges()
+  }, 700)
+}
+
+const markTranscriptDirty = () => {
+  transcriptEditVersion.value += 1
+  transcriptDirty.value = true
+  scheduleTranscriptSave()
+}
+
+const flushTranscriptSave = async () => {
+  if (!transcriptDirty.value) return
+  if (transcriptSaveTimer) {
+    clearTimeout(transcriptSaveTimer)
+    transcriptSaveTimer = null
+  }
+  await persistTranscriptChanges()
+}
+
 const restoreOriginalTranscript = () => {
   transcriptData.value = originalTranscriptData.value.map(item => ({ ...item }))
   if (transcriptData.value.length) initDashboard()
@@ -1175,6 +1196,13 @@ const resetDetailState = () => {
   // Reset tab state
   activeTab.value = 'summary'
   activeTranscriptTab.value = 'editor'
+  transcriptSaveError.value = ''
+  transcriptDirty.value = false
+  transcriptEditVersion.value = 0
+  if (transcriptSaveTimer) {
+    clearTimeout(transcriptSaveTimer)
+    transcriptSaveTimer = null
+  }
 }
 
 const hasDetailContent = (payload) => {
@@ -1300,6 +1328,8 @@ const runSummarizeDetail = async () => {
   actionError.value = ''
   actionSuccess.value = ''
   try {
+    await flushTranscriptSave()
+    if (transcriptSaveError.value) throw new Error(transcriptSaveError.value)
     await summarizeJob(folderName.value, fileName.value)
     actionSuccess.value = 'Summarization complete. Reloading…'
     await loadDetail()
@@ -1457,5 +1487,46 @@ watch(loading, (isLoading) => {
 .chat-bubble:hover .btn-delete-segment { 
   opacity: 1; 
   pointer-events: auto; 
+}
+.markdown-summary :deep(h1),
+.markdown-summary :deep(h2),
+.markdown-summary :deep(h3),
+.markdown-summary :deep(h4),
+.markdown-summary :deep(h5),
+.markdown-summary :deep(h6) {
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0.9rem 0 0.5rem;
+}
+.markdown-summary :deep(p) { margin: 0.5rem 0; }
+.markdown-summary :deep(ul),
+.markdown-summary :deep(ol) { margin: 0.6rem 0 0.6rem 1.2rem; }
+.markdown-summary :deep(li) { margin: 0.25rem 0; }
+.markdown-summary :deep(code) {
+  background: #e2e8f0;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+}
+.markdown-summary :deep(pre) {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+.markdown-summary :deep(pre code) {
+  background: transparent;
+  padding: 0;
+}
+.markdown-summary :deep(blockquote) {
+  border-left: 4px solid #cbd5e1;
+  padding-left: 0.75rem;
+  color: #475569;
+  margin: 0.75rem 0;
+}
+.markdown-summary :deep(a) {
+  color: #4f46e5;
+  text-decoration: underline;
 }
 </style>

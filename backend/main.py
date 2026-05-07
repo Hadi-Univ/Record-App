@@ -541,6 +541,13 @@ class TranslateRequest(BaseModel):
     files: Optional[List[Literal["json", "txt", "summary_txt"]]] = None
 
 
+class SaveTranscriptRequest(BaseModel):
+    google_token: str
+    folder_name: str
+    file_name: str
+    transcript_data: List[Dict[str, Any]] = Field(default_factory=list)
+
+
 class DeleteJobsRequest(BaseModel):
     google_token: str
     folder_names: List[str]
@@ -1608,6 +1615,60 @@ async def translate_outputs(req: TranslateRequest):
                 "source_language": source_language,
                 "target_language": target_language,
                 "files": translated_files,
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# =========================================================
+# API: TRANSCRIPT SAVE
+# =========================================================
+@app.post("/api/v1/transcript/save")
+async def save_transcript(req: SaveTranscriptRequest):
+    """
+    Persist the interactive transcript JSON and regenerate the plain-text
+    transcript so downstream features (summary/chat/flashcards) can reuse it.
+    """
+    try:
+        user_id = _resolve_user(req.google_token)
+        folder_name = _sanitize_name(req.folder_name, "folder_name")
+        file_name = _sanitize_name(req.file_name, "file_name")
+
+        job_dir = _safe_join(BASE_DIR, user_id, folder_name)
+        manifest = _read_manifest(job_dir)
+
+        files = manifest.setdefault("files", {})
+        raw_json_name = files.get("transcript_json") or f"{file_name}.json"
+        raw_txt_name = files.get("transcript_txt") or f"{file_name}.txt"
+        json_name = _sanitize_name(raw_json_name, "transcript_json")
+        txt_name = _sanitize_name(raw_txt_name, "transcript_txt")
+
+        json_path = _safe_join(job_dir, json_name)
+        txt_path = _safe_join(job_dir, txt_name)
+
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(req.transcript_data, f, ensure_ascii=False, indent=2)
+
+        json_to_txt(json_path, txt_path)
+
+        files["transcript_json"] = os.path.basename(json_path)
+        files["transcript_txt"] = os.path.basename(txt_path)
+        manifest.setdefault("status", {})["transcribe"] = "done"
+        manifest["status"]["summarize"] = "pending"
+        manifest["status"]["visualize"] = "pending"
+        manifest["updated_at"] = _now_iso()
+        _write_manifest(job_dir, manifest)
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": "Transcript saved",
+                "folder_name": folder_name,
+                "file_name": file_name,
+                "segment_count": len(req.transcript_data),
             },
         )
     except HTTPException:

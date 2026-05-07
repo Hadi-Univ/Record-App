@@ -298,6 +298,31 @@ export async function translateJob(folderName, fileName, sourceLang, targetLang,
 }
 
 /**
+ * Persist edited interactive transcript data.
+ * POST /api/v1/transcript/save
+ * @param {Array<object>} transcriptData
+ */
+export async function saveTranscript(folderName, fileName, transcriptData) {
+  const url = `${store.getBaseUrl()}/api/v1/transcript/save`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      google_token: store.state.token,
+      folder_name: folderName,
+      file_name: fileName,
+      transcript_data: Array.isArray(transcriptData) ? transcriptData : []
+    })
+  })
+
+  if (!response.ok) {
+    throw new Error(`Transcript save failed (${response.status})`)
+  }
+
+  return response.json()
+}
+
+/**
  * Generate flashcards from a transcribed job.
  * POST /api/v1/flashcards
  * @param {string} folderName - job folder name
