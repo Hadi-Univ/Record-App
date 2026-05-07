@@ -347,6 +347,9 @@ const store = useAppStore()
 const router = useRouter()
 const settings = store.state.settings
 const { t, locale, setLocale, availableLocales } = useI18n()
+const API_USER_ROLE = 'api user'
+const GITHUB_CONTRIBUTORS_URL = 'https://api.github.com/repos/Hadi-Univ/Record-App/contributors'
+const GITHUB_API_TIMEOUT_MS = 5000
 
 const showApiKey = ref(false)
 const testing = ref(false)
@@ -397,7 +400,7 @@ const modelPlaceholder = computed(() => {
 
 const showApiBackendRepoLink = computed(() => {
   const role = (store.state.user?.role || '').toLowerCase().trim()
-  return role === 'api user' || store.state.authMethod === 'api'
+  return role === API_USER_ROLE || store.state.authMethod === 'api'
 })
 
 const handleLogout = () => {
@@ -409,9 +412,9 @@ const fetchContributors = async () => {
   contributorsLoading.value = true
   contributorsError.value = ''
   try {
-    const response = await fetch('https://api.github.com/repos/Hadi-Univ/Record-App/contributors', {
+    const response = await fetch(GITHUB_CONTRIBUTORS_URL, {
       headers: { Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(GITHUB_API_TIMEOUT_MS)
     })
     if (!response.ok) {
       throw new Error(t('settings.creatorsLoadFailedStatus', { status: response.status }))
@@ -423,7 +426,7 @@ const fetchContributors = async () => {
       ? data.map((contributor, index) => {
         const name = contributor.login || unknownContributor
         return {
-          id: contributor.id ?? contributor.node_id ?? contributor.login ?? contributor.html_url ?? `contributor-${index}`,
+          id: contributor.id ?? `contributor-${index}`,
           name,
           avatarUrl: contributor.avatar_url || '',
           profileUrl: contributor.html_url || '',
