@@ -225,7 +225,7 @@
               v-else
               class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0"
             >
-              {{ contributor.name?.charAt(0)?.toUpperCase() || '?' }}
+              {{ contributor.name?.charAt(0)?.toUpperCase() || t('settings.unknownContributor').charAt(0).toUpperCase() }}
             </div>
             <span class="text-sm font-medium text-slate-800 truncate">{{ contributor.name }}</span>
           </div>
@@ -397,8 +397,7 @@ const modelPlaceholder = computed(() => {
 
 const showApiBackendRepoLink = computed(() => {
   const role = (store.state.user?.role || '').toLowerCase().trim()
-  const name = (store.state.user?.name || '').toLowerCase().trim()
-  return role === 'api user' || name === 'api user' || store.state.authMethod === 'api'
+  return role === 'api user' || store.state.authMethod === 'api'
 })
 
 const handleLogout = () => {
@@ -412,7 +411,7 @@ const fetchContributors = async () => {
   try {
     const response = await fetch('https://api.github.com/repos/Hadi-Univ/Record-App/contributors', {
       headers: { Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(5000)
     })
     if (!response.ok) {
       throw new Error(t('settings.creatorsLoadFailedStatus', { status: response.status }))
@@ -421,11 +420,11 @@ const fetchContributors = async () => {
     const data = await response.json()
     contributors.value = Array.isArray(data)
       ? data.map((contributor) => ({
-        id: contributor.id ?? contributor.login ?? contributor.html_url,
+        id: contributor.id ?? contributor.login,
         name: contributor.login || t('settings.unknownContributor'),
         avatarUrl: contributor.avatar_url || '',
         profileUrl: contributor.html_url || ''
-      }))
+      })).map((contributor, index) => ({ ...contributor, id: contributor.id ?? `contributor-${index}` }))
       : []
   } catch (err) {
     contributorsError.value = err?.message || t('settings.creatorsLoadFailedGeneric')
