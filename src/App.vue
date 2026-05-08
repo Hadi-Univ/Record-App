@@ -136,11 +136,11 @@ onMounted(async () => {
   await store.hydrateAuthState()
 
   const maybeRefreshAccessToken = async () => {
-    if (
-      store.state.authMethod !== 'basic' ||
-      !store.state.refreshToken ||
-      !store.isTokenNearExpiry()
-    ) return
+    const shouldRefresh =
+      store.state.authMethod === 'basic' &&
+      !!store.state.refreshToken &&
+      store.isTokenNearExpiry()
+    if (!shouldRefresh) return
 
     try {
       await refreshAccessToken()

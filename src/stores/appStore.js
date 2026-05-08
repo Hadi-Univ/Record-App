@@ -54,14 +54,12 @@ watch(
   state,
   (newState) => {
     try {
-      const {
-        token: _token,
-        refreshToken: _refreshToken,
-        tokenExpiresAt: _tokenExpiresAt,
-        user: _user,
-        authMethod: _authMethod,
-        ...rest
-      } = newState
+      const rest = {
+        historyCache: newState.historyCache,
+        historyDetailCache: newState.historyDetailCache,
+        settings: newState.settings,
+        pipeline: newState.pipeline
+      }
       localStorage.setItem(STATE_KEY, JSON.stringify(rest))
     } catch {
       // localStorage unavailable

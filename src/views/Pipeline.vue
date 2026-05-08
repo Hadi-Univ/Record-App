@@ -266,10 +266,6 @@
           </button>
         </div>
 
-        <div class="text-xs text-slate-500">
-          Microphone permission: <span class="font-semibold">{{ micPermissionState }}</span>
-        </div>
-
         <!-- Idle: show start button -->
         <div v-if="!isRecording && !audioBlob" class="flex flex-col items-center gap-3 py-6">
           <button
@@ -628,9 +624,9 @@ const dragOver = ref(false)
 const chunkUploadProgress = ref(0)
 const chunkUploadStep = ref('') // 'uploading' | 'assembling' | ''
 
-const DEFAULT_PARALLEL_CHUNKS = 3
-const FAST_PARALLEL_CHUNKS = 4
-const SLOW_PARALLEL_CHUNKS = 2
+const PARALLEL_CHUNKS_DEFAULT = 3
+const PARALLEL_CHUNKS_FAST = 4
+const PARALLEL_CHUNKS_SLOW = 2
 const MAX_CHUNK_RETRIES = 3
 const MAX_RECORDING_SECONDS = 30 * 60
 const MAX_RECORDING_BYTES = 100 * 1024 * 1024
@@ -810,9 +806,7 @@ const openAppSettings = async () => {
 const persistRecordingChunkNative = async (blob, index) => {
   const data = await blob.arrayBuffer()
   const bytes = new Uint8Array(data)
-  let binary = ''
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-  const base64 = btoa(binary)
+  const base64 = btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''))
   const path = `recordings/temp-${Date.now()}-${index}.webm`
   await Filesystem.writeFile({
     path,
@@ -829,8 +823,7 @@ const reconstructNativeRecordingBlob = async (mimeType) => {
   for (const path of recordingChunkFiles) {
     const { data } = await Filesystem.readFile({ path, directory: Directory.Cache })
     const binary = atob(data)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0))
     chunks.push(bytes)
   }
   return new Blob(chunks, { type: mimeType || 'audio/webm' })
@@ -842,8 +835,8 @@ const cleanupNativeRecordingChunks = async () => {
   await Promise.all(files.map(async (path) => {
     try {
       await Filesystem.deleteFile({ path, directory: Directory.Cache })
-    } catch {
-      // ignore cleanup failures
+    } catch (err) {
+      console.warn('Failed to clean up temporary recording chunk:', err)
     }
   }))
 }
@@ -1051,12 +1044,12 @@ const getAdaptiveParallelChunks = async () => {
   try {
     const { connected, connectionType } = await Network.getStatus()
     if (!connected) throw new Error('No network connection available.')
-    if (connectionType === 'wifi' || connectionType === 'ethernet') return FAST_PARALLEL_CHUNKS
-    if (connectionType === 'cellular') return SLOW_PARALLEL_CHUNKS
+    if (connectionType === 'wifi' || connectionType === 'ethernet') return PARALLEL_CHUNKS_FAST
+    if (connectionType === 'cellular') return PARALLEL_CHUNKS_SLOW
   } catch {
     // ignore and use default
   }
-  return DEFAULT_PARALLEL_CHUNKS
+  return PARALLEL_CHUNKS_DEFAULT
 }
 
 const getSavedUploadSessionMeta = async () => {

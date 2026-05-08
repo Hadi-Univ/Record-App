@@ -9,7 +9,9 @@ function isNative() {
 async function getSecureStoragePlugin() {
   try {
     const mod = await import('@aparajita/capacitor-secure-storage')
-    return mod.SecureStorage || mod.default || null
+    if (mod?.SecureStorage) return mod.SecureStorage
+    if (mod?.default?.SecureStorage) return mod.default.SecureStorage
+    return null
   } catch {
     return null
   }
