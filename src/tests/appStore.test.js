@@ -58,8 +58,8 @@ describe('appStore – initial state', () => {
       }
     }
     const { state } = await freshStore(saved)
-    expect(state.token).toBe('my-token')
-    expect(state.user.name).toBe('Alice')
+    expect(state.token).toBe('')
+    expect(state.user).toBeNull()
     expect(state.settings.provider).toBe('openai')
     expect(state.settings.model).toBe('gpt-4o')
     expect(state.settings.apiKey).toBe('sk-123')
@@ -210,6 +210,6 @@ describe('appStore – localStorage persistence', () => {
     await new Promise(resolve => setTimeout(resolve, 50))
 
     const saved = JSON.parse(localStorage.getItem('audio_pipeline_state_v3'))
-    expect(saved.token).toBe('new-token')
+    expect(saved.token).toBeUndefined()
   })
 })

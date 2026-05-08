@@ -105,12 +105,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from './stores/appStore'
 import { refreshAccessToken } from './services/authService'
 import NavIcon from './components/NavIcon.vue'
 import { useI18n } from './i18n/index.js'
+import { App as CapacitorApp } from '@capacitor/app'
+import { Network } from '@capacitor/network'
 
 const store = useAppStore()
 const router = useRouter()
@@ -125,15 +127,21 @@ router.beforeEach((to, from) => {
   return true
 })
 
-// Silently refresh the access token on startup when it is near expiry (within
-// 7 days) and a refresh token is available.  Errors are swallowed so that
-// offline users are never forcibly logged out by a failed refresh attempt.
+let appStateListener = null
+let networkListener = null
+
+// Hydrate secure auth state first, then refresh access tokens on startup, app
+// resume, and network reconnect when near expiry.
 onMounted(async () => {
-  if (
-    store.state.authMethod === 'basic' &&
-    store.state.refreshToken &&
-    store.isTokenNearExpiry()
-  ) {
+  await store.hydrateAuthState()
+
+  const maybeRefreshAccessToken = async () => {
+    if (
+      store.state.authMethod !== 'basic' ||
+      !store.state.refreshToken ||
+      !store.isTokenNearExpiry()
+    ) return
+
     try {
       await refreshAccessToken()
     } catch {
@@ -142,6 +150,26 @@ onMounted(async () => {
       // server action that requires a valid token.
     }
   }
+
+  await maybeRefreshAccessToken()
+
+  if (!window.Capacitor?.isNativePlatform?.()) return
+
+  try {
+    appStateListener = await CapacitorApp.addListener('appStateChange', async ({ isActive }) => {
+      if (isActive) await maybeRefreshAccessToken()
+    })
+    networkListener = await Network.addListener('networkStatusChange', async ({ connected }) => {
+      if (connected) await maybeRefreshAccessToken()
+    })
+  } catch {
+    // Plugin unavailable in non-native runtimes.
+  }
+})
+
+onUnmounted(() => {
+  appStateListener?.remove?.()
+  networkListener?.remove?.()
 })
 
 const navLinks = computed(() => [

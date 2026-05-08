@@ -54,6 +54,58 @@ npm run dev
 
 The Vite dev server automatically proxies all `/api/*` requests to `http://localhost:8000`, so no CORS configuration is needed during development. Leave `VITE_API_BASE_URL` unset (the default).
 
+## Capacitor Mobile (Android + iOS)
+
+This app now includes Capacitor configuration and native platform projects (`android/`, `ios/`).
+
+### Installed mobile plugins
+
+- `@capacitor/app` (lifecycle hooks)
+- `@capacitor/network` (network quality/status detection)
+- `@capacitor/preferences` (non-sensitive local metadata)
+- `@capacitor/filesystem` (native temp chunk handling for recording)
+- `@aparajita/capacitor-secure-storage` (secure auth token persistence)
+- `@capacitor/app-launcher` (settings deep-link fallback)
+- `@codetrix-studio/capacitor-google-auth` (native Google sign-in)
+
+### Mobile workflow
+
+```bash
+npm run build
+npm run cap:sync
+npm run cap:open:android
+npm run cap:open:ios
+```
+
+If platform folders do not exist yet:
+
+```bash
+npm run cap:add:android
+npm run cap:add:ios
+```
+
+### Microphone permissions
+
+- iOS: `NSMicrophoneUsageDescription` is defined in `/ios/App/App/Info.plist`.
+- Android: `RECORD_AUDIO` is declared in `/android/app/src/main/AndroidManifest.xml`.
+- The app only asks for microphone access when the user taps **Record**.
+- Permission states are tracked in the UI (`unknown`, `granted`, `denied`, `permanently_denied`, `blocked`) with a settings fallback for permanently denied cases.
+
+### Mobile performance and reliability notes
+
+- Recording enforces guardrails: max 30 minutes and max 100 MB.
+- Native recording chunks are persisted to temporary cache files to reduce memory pressure during long recordings.
+- Chunk upload parallelism adapts by network type (faster on Wi-Fi, reduced on cellular).
+- Upload session metadata is persisted so interrupted uploads can resume.
+- App lifecycle hooks stop active recording on background and attempt recovery when app becomes active again.
+
+### Platform pitfalls to validate
+
+- iOS WebView media behavior can be stricter than desktop browsers.
+- Android OEM power policies may interrupt long background operations.
+- Very long recordings can still be device-dependent; test low-end Android devices.
+- Ensure backend transport security policies are configured appropriately for mobile environments.
+
 ### Remote / production backend
 
 Set `VITE_API_BASE_URL` in a `.env` file (copy from `.env.example`) and the frontend will send API requests directly to that URL:

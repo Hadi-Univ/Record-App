@@ -1,4 +1,9 @@
 import { reactive, watch } from 'vue'
+import {
+  loadSecureAuthState,
+  saveSecureAuthState,
+  clearSecureAuthState
+} from '../services/secureAuthStorage'
 
 const STATE_KEY = 'audio_pipeline_state_v3'
 
@@ -11,11 +16,11 @@ const savedState = (() => {
 })()
 
 const state = reactive({
-  token: savedState.token || '',
-  refreshToken: savedState.refreshToken || '',
-  tokenExpiresAt: savedState.tokenExpiresAt || 0,
-  user: savedState.user || null,
-  authMethod: savedState.authMethod || '',
+  token: '',
+  refreshToken: '',
+  tokenExpiresAt: 0,
+  user: null,
+  authMethod: '',
   historyCache: Array.isArray(savedState.historyCache) ? savedState.historyCache : [],
   historyDetailCache:
     savedState.historyDetailCache && typeof savedState.historyDetailCache === 'object'
@@ -49,13 +54,56 @@ watch(
   state,
   (newState) => {
     try {
-      localStorage.setItem(STATE_KEY, JSON.stringify(newState))
+      const {
+        token: _token,
+        refreshToken: _refreshToken,
+        tokenExpiresAt: _tokenExpiresAt,
+        user: _user,
+        authMethod: _authMethod,
+        ...rest
+      } = newState
+      localStorage.setItem(STATE_KEY, JSON.stringify(rest))
     } catch {
       // localStorage unavailable
     }
   },
   { deep: true }
 )
+
+watch(
+  () => [state.token, state.refreshToken, state.tokenExpiresAt, state.authMethod, JSON.stringify(state.user || null)],
+  () => {
+    saveSecureAuthState({
+      token: state.token || '',
+      refreshToken: state.refreshToken || '',
+      tokenExpiresAt: state.tokenExpiresAt || 0,
+      user: state.user || null,
+      authMethod: state.authMethod || ''
+    }).catch(() => {})
+  }
+)
+
+const hydrateAuthState = async () => {
+  const secureState = await loadSecureAuthState().catch(() => null)
+
+  if (secureState && typeof secureState === 'object') {
+    state.token = secureState.token || ''
+    state.refreshToken = secureState.refreshToken || ''
+    state.tokenExpiresAt = secureState.tokenExpiresAt || 0
+    state.user = secureState.user || null
+    state.authMethod = secureState.authMethod || ''
+    return
+  }
+
+  // One-time compatibility migration from legacy localStorage auth fields.
+  if (savedState.token || savedState.refreshToken) {
+    state.token = savedState.token || ''
+    state.refreshToken = savedState.refreshToken || ''
+    state.tokenExpiresAt = savedState.tokenExpiresAt || 0
+    state.user = savedState.user || null
+    state.authMethod = savedState.authMethod || ''
+  }
+}
 
 const logout = () => {
   state.token = ''
@@ -65,6 +113,7 @@ const logout = () => {
   state.authMethod = ''
   state.historyCache = []
   state.historyDetailCache = {}
+  clearSecureAuthState().catch(() => {})
   state.pipeline = {
     currentStep: 1,
     status: 'idle',
@@ -121,4 +170,13 @@ const getAuthUrl = (endpoint) => {
   return `${getBaseUrl()}${endpoint}${sep}google_token=${token}`
 }
 
-export const useAppStore = () => ({ state, logout, clearPipeline, getBaseUrl, getAuthUrl, isTokenExpired, isTokenNearExpiry })
+export const useAppStore = () => ({
+  state,
+  logout,
+  clearPipeline,
+  getBaseUrl,
+  getAuthUrl,
+  isTokenExpired,
+  isTokenNearExpiry,
+  hydrateAuthState
+})

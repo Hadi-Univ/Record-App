@@ -257,6 +257,17 @@
         <!-- Mic permission error -->
         <div v-if="recordError" class="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600 font-medium">
           {{ recordError }}
+          <button
+            v-if="micPermissionState === 'permanently_denied'"
+            @click="openAppSettings"
+            class="ml-2 underline font-semibold"
+          >
+            Open settings
+          </button>
+        </div>
+
+        <div class="text-xs text-slate-500">
+          Microphone permission: <span class="font-semibold">{{ micPermissionState }}</span>
         </div>
 
         <!-- Idle: show start button -->
@@ -271,6 +282,7 @@
             </svg>
           </button>
           <p class="text-sm text-slate-500">Tap to start recording</p>
+          <p class="text-xs text-slate-400">Up to 30 minutes or 100 MB per recording.</p>
         </div>
 
         <!-- Recording in progress -->
@@ -593,11 +605,16 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { App as CapacitorApp } from '@capacitor/app'
+import { Network } from '@capacitor/network'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { AppLauncher } from '@capacitor/app-launcher'
 import Stepper from '../components/Stepper.vue'
 import AudioSpectrum from '../components/AudioSpectrum.vue'
 import { useAppStore } from '../stores/appStore'
 import * as api from '../services/api.js'
 import { useI18n } from '../i18n/index.js'
+import { getJsonItem, setJsonItem, removeItem } from '../services/mobileStorage'
 
 const store = useAppStore()
 const pipeline = store.state.pipeline
@@ -611,8 +628,15 @@ const dragOver = ref(false)
 const chunkUploadProgress = ref(0)
 const chunkUploadStep = ref('') // 'uploading' | 'assembling' | ''
 
-const PARALLEL_CHUNKS = 3
+const DEFAULT_PARALLEL_CHUNKS = 3
+const FAST_PARALLEL_CHUNKS = 4
+const SLOW_PARALLEL_CHUNKS = 2
 const MAX_CHUNK_RETRIES = 3
+const MAX_RECORDING_SECONDS = 30 * 60
+const MAX_RECORDING_BYTES = 100 * 1024 * 1024
+const RECORDING_TIMESLICE_MS = 1000
+const UPLOAD_SESSION_META_KEY = 'pipeline_upload_session_v1'
+const MIC_PERMISSION_META_KEY = 'mic_permission_state_v1'
 
 // Record mode state
 const inputMode = ref('upload') // 'upload' | 'record'
@@ -620,11 +644,16 @@ const isRecording = ref(false)
 const audioBlob = ref(null)
 const audioBlobUrl = ref(null)
 const recordingSeconds = ref(0)
+const recordedBytes = ref(0)
 const recordError = ref('')
+const micPermissionState = ref('unknown')
 let mediaRecorder = null
 let audioChunks = []
+let recordingChunkWritePromises = []
+let recordingChunkFiles = []
 let recordingTimer = null
 const micStream = ref(null)
+let appStateListener = null
 
 // ── Pipeline Metrics ──────────────────────────────────────────────────────────
 const stageLabels = { upload: 'Upload & Transcribe', summarize: 'Summarize', visualize: 'Visualize' }
@@ -749,14 +778,105 @@ const formatRecordingTime = (seconds) => {
   return `${m}:${s}`
 }
 
+const isNativeCapacitor = () => window.Capacitor?.isNativePlatform?.() === true
+
+const supportsPermissionQuery = () => {
+  return typeof navigator !== 'undefined' && navigator.permissions?.query
+}
+
+const resolveMicPermissionState = async () => {
+  if (!supportsPermissionQuery()) return micPermissionState.value
+  try {
+    const status = await navigator.permissions.query({ name: 'microphone' })
+    if (status.state === 'granted') return 'granted'
+    if (status.state === 'denied') {
+      const stored = await getJsonItem(MIC_PERMISSION_META_KEY).catch(() => null)
+      return stored?.requested ? 'permanently_denied' : 'denied'
+    }
+    return 'unknown'
+  } catch {
+    return micPermissionState.value
+  }
+}
+
+const openAppSettings = async () => {
+  try {
+    await AppLauncher.openUrl({ url: 'app-settings:' })
+  } catch {
+    recordError.value = 'Please open Settings and enable Microphone permission for this app.'
+  }
+}
+
+const persistRecordingChunkNative = async (blob, index) => {
+  const data = await blob.arrayBuffer()
+  const bytes = new Uint8Array(data)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  const base64 = btoa(binary)
+  const path = `recordings/temp-${Date.now()}-${index}.webm`
+  await Filesystem.writeFile({
+    path,
+    data: base64,
+    directory: Directory.Cache,
+    recursive: true
+  })
+  recordingChunkFiles.push(path)
+}
+
+const reconstructNativeRecordingBlob = async (mimeType) => {
+  if (!recordingChunkFiles.length) return null
+  const chunks = []
+  for (const path of recordingChunkFiles) {
+    const { data } = await Filesystem.readFile({ path, directory: Directory.Cache })
+    const binary = atob(data)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    chunks.push(bytes)
+  }
+  return new Blob(chunks, { type: mimeType || 'audio/webm' })
+}
+
+const cleanupNativeRecordingChunks = async () => {
+  const files = [...recordingChunkFiles]
+  recordingChunkFiles = []
+  await Promise.all(files.map(async (path) => {
+    try {
+      await Filesystem.deleteFile({ path, directory: Directory.Cache })
+    } catch {
+      // ignore cleanup failures
+    }
+  }))
+}
+
 const startRecording = async () => {
   recordError.value = ''
   audioChunks = []
+  recordedBytes.value = 0
+  recordingChunkWritePromises = []
+  micPermissionState.value = await resolveMicPermissionState()
+
+  if (micPermissionState.value === 'permanently_denied') {
+    recordError.value = 'Microphone permission is blocked. Please enable it in app settings.'
+    return
+  }
+
   try {
     micStream.value = await navigator.mediaDevices.getUserMedia({ audio: true })
+    micPermissionState.value = 'granted'
+    await setJsonItem(MIC_PERMISSION_META_KEY, { requested: true, granted: true })
   } catch (err) {
-    console.error('Microphone access error:', err)
-    recordError.value = 'Microphone access denied. Please allow microphone permissions and try again.'
+    const errorName = err?.name || ''
+    if (errorName === 'NotAllowedError') {
+      micPermissionState.value = micPermissionState.value === 'denied' ? 'permanently_denied' : 'denied'
+    } else if (errorName === 'NotFoundError' || errorName === 'NotReadableError' || errorName === 'SecurityError') {
+      micPermissionState.value = 'blocked'
+    } else {
+      micPermissionState.value = 'denied'
+    }
+    await setJsonItem(MIC_PERMISSION_META_KEY, { requested: true, granted: false }).catch(() => {})
+    recordError.value = micPermissionState.value === 'permanently_denied'
+      ? 'Microphone permission is blocked. Open app settings to allow access.'
+      : 'Microphone access denied. Please allow microphone permissions and try again.'
     return
   }
 
@@ -771,20 +891,50 @@ const startRecording = async () => {
     : new MediaRecorder(micStream.value)
 
   mediaRecorder.ondataavailable = (e) => {
-    if (e.data && e.data.size > 0) audioChunks.push(e.data)
+    if (!e.data || e.data.size <= 0) return
+
+    recordedBytes.value += e.data.size
+    if (recordedBytes.value > MAX_RECORDING_BYTES) {
+      recordError.value = 'Recording stopped: maximum file size reached (100 MB).'
+      stopRecording()
+      return
+    }
+
+    if (isNativeCapacitor()) {
+      const writeTask = persistRecordingChunkNative(e.data, recordingChunkFiles.length)
+      recordingChunkWritePromises.push(writeTask)
+    } else {
+      audioChunks.push(e.data)
+    }
   }
 
-  mediaRecorder.onstop = () => {
-    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' })
+  mediaRecorder.onstop = async () => {
+    await Promise.all(recordingChunkWritePromises).catch(() => {})
+    const blob = isNativeCapacitor()
+      ? await reconstructNativeRecordingBlob(mediaRecorder.mimeType || 'audio/webm')
+      : new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' })
+    if (!blob) {
+      recordError.value = 'Recording could not be reconstructed. Please try again.'
+      releaseMicStream()
+      await cleanupNativeRecordingChunks()
+      return
+    }
     audioBlob.value = blob
     audioBlobUrl.value = URL.createObjectURL(blob)
     releaseMicStream()
+    await cleanupNativeRecordingChunks()
   }
 
-  mediaRecorder.start(250)
+  mediaRecorder.start(RECORDING_TIMESLICE_MS)
   isRecording.value = true
   recordingSeconds.value = 0
-  recordingTimer = setInterval(() => { recordingSeconds.value++ }, 1000)
+  recordingTimer = setInterval(() => {
+    recordingSeconds.value++
+    if (recordingSeconds.value >= MAX_RECORDING_SECONDS) {
+      recordError.value = 'Recording stopped: maximum duration reached (30 minutes).'
+      stopRecording()
+    }
+  }, 1000)
 }
 
 const stopRecording = () => {
@@ -803,6 +953,9 @@ const discardRecording = () => {
     audioBlobUrl.value = null
   }
   audioBlob.value = null
+  recordedBytes.value = 0
+  audioChunks = []
+  cleanupNativeRecordingChunks().catch(() => {})
   recordingSeconds.value = 0
   recordError.value = ''
 }
@@ -817,6 +970,7 @@ const releaseMicStream = () => {
 onUnmounted(() => {
   discardRecording()
   releaseMicStream()
+  appStateListener?.remove?.()
   clearInterval(timeTickInterval)
 })
 
@@ -893,6 +1047,32 @@ const recoverPipelineAfterRefresh = async () => {
   }
 }
 
+const getAdaptiveParallelChunks = async () => {
+  try {
+    const { connected, connectionType } = await Network.getStatus()
+    if (!connected) throw new Error('No network connection available.')
+    if (connectionType === 'wifi' || connectionType === 'ethernet') return FAST_PARALLEL_CHUNKS
+    if (connectionType === 'cellular') return SLOW_PARALLEL_CHUNKS
+  } catch {
+    // ignore and use default
+  }
+  return DEFAULT_PARALLEL_CHUNKS
+}
+
+const getSavedUploadSessionMeta = async () => {
+  const meta = await getJsonItem(UPLOAD_SESSION_META_KEY).catch(() => null)
+  if (!meta || typeof meta !== 'object') return null
+  return meta
+}
+
+const saveUploadSessionMeta = async (meta) => {
+  await setJsonItem(UPLOAD_SESSION_META_KEY, meta).catch(() => {})
+}
+
+const clearUploadSessionMeta = async () => {
+  await removeItem(UPLOAD_SESSION_META_KEY).catch(() => {})
+}
+
 const startPipeline = async () => {
   let fileToUpload = selectedFile.value
 
@@ -947,23 +1127,49 @@ const startPipeline = async () => {
  * retries failed chunks, then calls /upload/complete to assemble + transcribe.
  */
 const uploadFileChunked = async (file) => {
+  const parallelChunks = await getAdaptiveParallelChunks()
   const totalChunks = Math.ceil(file.size / api.CHUNK_SIZE)
   chunkUploadProgress.value = 0
   chunkUploadStep.value = 'uploading'
 
-  // Init session
-  const { upload_id } = await api.initChunkedUpload(file.name, totalChunks, file.size)
+  // Init (or restore) session
+  const existing = await getSavedUploadSessionMeta()
+  const isReusable = existing &&
+    existing.fileName === file.name &&
+    existing.fileSize === file.size &&
+    existing.totalChunks === totalChunks
+
+  const uploadId = isReusable
+    ? existing.uploadId
+    : (await api.initChunkedUpload(file.name, totalChunks, file.size)).upload_id
+
+  await saveUploadSessionMeta({
+    uploadId,
+    fileName: file.name,
+    fileSize: file.size,
+    totalChunks,
+    uploadedChunks: 0,
+    updatedAt: Date.now()
+  })
 
   // Resume: find out which chunks the server already has
-  const { received_chunks: alreadyReceived } = await api.getUploadStatus(upload_id)
+  const { received_chunks: alreadyReceived } = await api.getUploadStatus(uploadId)
   const receivedSet = new Set(alreadyReceived)
   const pending = Array.from({ length: totalChunks }, (_, i) => i).filter(i => !receivedSet.has(i))
 
   let uploaded = alreadyReceived.length
+  await saveUploadSessionMeta({
+    uploadId,
+    fileName: file.name,
+    fileSize: file.size,
+    totalChunks,
+    uploadedChunks: uploaded,
+    updatedAt: Date.now()
+  })
 
   // Upload pending chunks in parallel batches
-  for (let i = 0; i < pending.length; i += PARALLEL_CHUNKS) {
-    const batch = pending.slice(i, i + PARALLEL_CHUNKS)
+  for (let i = 0; i < pending.length; i += parallelChunks) {
+    const batch = pending.slice(i, i + parallelChunks)
     await Promise.all(batch.map(async (chunkIndex) => {
       const start = chunkIndex * api.CHUNK_SIZE
       const end = Math.min(start + api.CHUNK_SIZE, file.size)
@@ -971,9 +1177,17 @@ const uploadFileChunked = async (file) => {
       let lastErr
       for (let attempt = 0; attempt < MAX_CHUNK_RETRIES; attempt++) {
         try {
-          await api.uploadChunk(upload_id, chunkIndex, blob)
+          await api.uploadChunk(uploadId, chunkIndex, blob)
           uploaded++
           chunkUploadProgress.value = Math.round((uploaded / totalChunks) * 90)
+          await saveUploadSessionMeta({
+            uploadId,
+            fileName: file.name,
+            fileSize: file.size,
+            totalChunks,
+            uploadedChunks: uploaded,
+            updatedAt: Date.now()
+          })
           return
         } catch (err) {
           lastErr = err
@@ -987,9 +1201,10 @@ const uploadFileChunked = async (file) => {
   pipeline.currentSubStep = 'Assembling & transcribing audio…'
   chunkUploadStep.value = 'assembling'
   chunkUploadProgress.value = 95
-  const result = await api.completeChunkedUpload(upload_id)
+  const result = await api.completeChunkedUpload(uploadId)
   chunkUploadProgress.value = 100
   chunkUploadStep.value = ''
+  await clearUploadSessionMeta()
   return result
 }
 
@@ -1111,6 +1326,18 @@ const rerunVisualize = async () => {
 
 onMounted(() => {
   recoverPipelineAfterRefresh()
+  resolveMicPermissionState().then((stateValue) => { micPermissionState.value = stateValue })
+  CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+    if (!isActive && isRecording.value) {
+      recordError.value = 'Recording stopped because the app moved to background.'
+      stopRecording()
+    }
+    if (isActive && pipeline.status === 'running' && pipeline.folderName) {
+      recoverPipelineAfterRefresh()
+    }
+  }).then((listener) => {
+    appStateListener = listener
+  }).catch(() => {})
   timeTickInterval = setInterval(() => {
     if (pipeline.status === 'running') {
       currentTime.value = Date.now()
