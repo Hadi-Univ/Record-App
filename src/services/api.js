@@ -2,6 +2,11 @@ import { useAppStore } from '../stores/appStore'
 
 const store = useAppStore()
 const inFlightGetRequests = new Map()
+const CACHE_KEY_PREFIX = {
+  JOB: 'job:',
+  UPLOAD: 'upload:',
+  HISTORY: 'history'
+}
 
 const buildAuthHeaders = (extraHeaders = {}) => {
   const headers = { ...extraHeaders }
@@ -100,7 +105,7 @@ export async function summarizeJob(folderName, fileName) {
     throw new Error(`Summarization failed (${response.status}): ${err}`)
   }
   const result = await response.json()
-  invalidateGetCaches('history', `job:${folderName}`)
+  invalidateGetCaches(CACHE_KEY_PREFIX.HISTORY, `${CACHE_KEY_PREFIX.JOB}${folderName}`)
   return result
 }
 
@@ -128,7 +133,7 @@ export async function visualizeJob(folderName, fileName) {
     throw new Error(`Visualization failed (${response.status}): ${err}`)
   }
   const result = await response.json()
-  invalidateGetCaches('history', `job:${folderName}`)
+  invalidateGetCaches(CACHE_KEY_PREFIX.HISTORY, `${CACHE_KEY_PREFIX.JOB}${folderName}`)
   return result
 }
 
@@ -138,7 +143,7 @@ export async function visualizeJob(folderName, fileName) {
  */
 export async function getJob(folderName) {
   return fetchGetJsonWithDedup(
-    `job:${folderName}`,
+    `${CACHE_KEY_PREFIX.JOB}${folderName}`,
     `/api/v1/job/${encodeURIComponent(folderName)}`,
     'Job fetch failed'
   )
@@ -149,7 +154,7 @@ export async function getJob(folderName) {
  * GET /api/v1/history
  */
 export async function getHistory() {
-  return fetchGetJsonWithDedup('history', '/api/v1/history', 'History fetch failed')
+  return fetchGetJsonWithDedup(CACHE_KEY_PREFIX.HISTORY, '/api/v1/history', 'History fetch failed')
 }
 
 /**
@@ -222,7 +227,7 @@ export async function uploadChunk(uploadId, chunkIndex, chunkBlob) {
  */
 export async function getUploadStatus(uploadId) {
   return fetchGetJsonWithDedup(
-    `upload:${uploadId}`,
+    `${CACHE_KEY_PREFIX.UPLOAD}${uploadId}`,
     `/api/v1/upload/status/${encodeURIComponent(uploadId)}`,
     'Upload status check failed'
   )
@@ -249,7 +254,7 @@ export async function completeChunkedUpload(uploadId, transcribeLang) {
     throw new Error(`Upload complete failed (${response.status}): ${err}`)
   }
   const result = await response.json()
-  invalidateGetCaches('history')
+  invalidateGetCaches(CACHE_KEY_PREFIX.HISTORY)
   return result
 }
 
@@ -275,7 +280,7 @@ export async function retranscribeJob(folderName, fileName, transcribeLang) {
     throw new Error(`Re-transcription failed (${response.status}): ${err}`)
   }
   const result = await response.json()
-  invalidateGetCaches('history', `job:${folderName}`)
+  invalidateGetCaches(CACHE_KEY_PREFIX.HISTORY, `${CACHE_KEY_PREFIX.JOB}${folderName}`)
   return result
 }
 
@@ -301,7 +306,7 @@ export async function deleteJobs(folderNames) {
   }
 
   const result = await response.json()
-  invalidateGetCaches('history')
+  invalidateGetCaches(CACHE_KEY_PREFIX.HISTORY)
   return result
 }
 
@@ -331,7 +336,7 @@ export async function translateJob(folderName, fileName, sourceLang, targetLang,
   }
 
   const result = await response.json()
-  invalidateGetCaches(`job:${folderName}`)
+  invalidateGetCaches(`${CACHE_KEY_PREFIX.JOB}${folderName}`)
   return result
 }
 
@@ -358,7 +363,7 @@ export async function saveTranscript(folderName, fileName, transcriptData) {
   }
 
   const result = await response.json()
-  invalidateGetCaches(`job:${folderName}`)
+  invalidateGetCaches(`${CACHE_KEY_PREFIX.JOB}${folderName}`)
   return result
 }
 
