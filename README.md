@@ -64,6 +64,27 @@ VITE_API_BASE_URL=https://your-backend.example.com
 
 When `VITE_API_BASE_URL` is set, the Vite proxy target is also updated so the dev server forwards requests to the same host.
 
+### Backend CORS configuration (FastAPI)
+
+The backend uses configurable CORS middleware with secure production defaults.
+
+Example backend environment configuration:
+
+```env
+APP_ENV=production
+CORS_ALLOW_ORIGINS=https://app.example.com,https://admin.example.com
+CORS_ALLOW_CREDENTIALS=true
+CORS_ALLOW_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
+CORS_ALLOW_HEADERS=Authorization,Content-Type,Accept,Origin,X-Requested-With
+CORS_EXPOSE_HEADERS=
+CORS_MAX_AGE=600
+```
+
+Notes:
+- In `production`, wildcard origins (`*`) are intentionally rejected.
+- Preflight `OPTIONS` requests are handled by the middleware.
+- CORS response headers are applied automatically for allowed origins.
+
 ### Google OAuth
 
 Set your Google OAuth client ID in `.env`:
