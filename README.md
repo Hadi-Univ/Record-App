@@ -115,4 +115,46 @@ Record-App/
 
 ## Backend Integration
 
-This repository contains the frontend application. It communicates with a separate FastAPI backend through `/api/v1/*` endpoints. Ensure your backend is reachable and configured with compatible auth and CORS settings for your deployment environment.
+This repository contains the frontend application only. It communicates with a separate FastAPI backend through `/api/v1/*` endpoints.
+
+For local development:
+
+- Run your backend on `http://localhost:8000`
+- Keep `VITE_API_BASE_URL` unset so Vite proxies `/api/*` to the backend automatically
+
+For remote environments:
+
+- Set `VITE_API_BASE_URL` to your backend URL in `.env`
+- Ensure the backend allows requests from your frontend origin
+
+### API Endpoints Used by the Frontend
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/transcribe` | Upload audio and start transcription |
+| `POST` | `/api/v1/upload/init` | Initialize chunked upload session |
+| `POST` | `/api/v1/upload/chunk` | Upload chunk payload |
+| `GET` | `/api/v1/upload/status/{upload_id}` | Check uploaded chunks |
+| `POST` | `/api/v1/upload/complete` | Finalize chunked upload + transcribe |
+| `POST` | `/api/v1/retranscribe` | Re-run transcription |
+| `POST` | `/api/v1/summarize` | Generate summary |
+| `POST` | `/api/v1/visualize` | Generate visualization |
+| `GET` | `/api/v1/history` | List jobs |
+| `GET` | `/api/v1/job/{folder_name}` | Fetch job details |
+| `POST` | `/api/v1/history/delete` | Delete one or more jobs |
+| `POST` | `/api/v1/translate` | Translate output files |
+| `POST` | `/api/v1/transcript/save` | Save edited transcript data |
+| `POST` | `/api/v1/flashcards` | Generate study flashcards |
+| `POST` | `/api/v1/chat` | Ask questions about transcript content |
+
+### Authentication and Downloads
+
+- API requests include `Authorization: Bearer <token>` when authenticated.
+- Some backend-compatible requests also include `google_token` in body/query values.
+- Download URLs are generated via `/api/v1/download/{folder_name}/{file_type}` and support:
+  - `audio`
+  - `summary_txt`
+  - `summary_html`
+  - `image`
+  - `transcript_txt`
+  - `transcript_json`
