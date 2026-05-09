@@ -70,8 +70,8 @@
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       @click.self="showDeleteConfirm = false"
     >
-      <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
-        <h2 class="text-base font-extrabold text-slate-900 mb-2">{{ selectedCount !== 1 ? t('history.deleteConfirmTitlePlural', { n: selectedCount }) : t('history.deleteConfirmTitle', { n: selectedCount }) }}</h2>
+      <div role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title" class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+        <h2 id="delete-dialog-title" class="text-base font-extrabold text-slate-900 mb-2">{{ selectedCount !== 1 ? t('history.deleteConfirmTitlePlural', { n: selectedCount }) : t('history.deleteConfirmTitle', { n: selectedCount }) }}</h2>
         <p class="text-sm text-slate-500 mb-5">{{ t('history.deleteConfirmMessage') }}</p>
         <div class="flex gap-3">
           <button
@@ -132,12 +132,11 @@
         class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
         :class="{ 'ring-2 ring-indigo-400': selectMode && selected[job.folder_name] }"
       >
-        <div
+        <button
           @click="selectMode ? toggleSelect(job.folder_name) : openJobDetail(job.folder_name)"
-          @keydown.enter="selectMode ? toggleSelect(job.folder_name) : openJobDetail(job.folder_name)"
-          role="button"
-          tabindex="0"
-          class="w-full flex items-start justify-between p-5 text-left hover:bg-slate-50 transition cursor-pointer"
+          type="button"
+          :aria-label="`${selectMode ? 'Select' : 'Open'} job ${job.folder_name}`"
+          class="w-full flex items-start justify-between p-5 text-left hover:bg-slate-50 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-inset"
         >
           <!-- Checkbox in select mode -->
           <div v-if="selectMode" class="flex-shrink-0 flex items-center mr-3 mt-0.5">
@@ -170,7 +169,7 @@
             </button>
             <span class="text-xs text-indigo-600 font-semibold">{{ t('history.open') }}</span>
           </div>
-        </div>
+        </button>
       </div>
     </div>
   </div>
@@ -179,7 +178,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getHistory, summarizeJob, visualizeJob, deleteJobs } from '../services/api.js'
+import { getHistory, summarizeJob, visualizeJob, deleteJobs, GET_CACHE_TTL_MS } from '../services/api.js'
 import { useAppStore } from '../stores/appStore'
 import { useI18n } from '../i18n/index.js'
 
@@ -324,7 +323,7 @@ const loadHistory = async () => {
   loading.value = true
   error.value = ''
   try {
-    const result = await getHistory()
+    const result = await getHistory({ cacheTtlMs: GET_CACHE_TTL_MS.HISTORY })
     const normalized = Array.isArray(result) ? result : (result.jobs || result.data || [])
     jobs.value = normalized
     store.state.historyCache = normalized

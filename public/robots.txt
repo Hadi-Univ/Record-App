@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://record-note.example.com/sitemap.xml

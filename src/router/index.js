@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAppStore } from '../stores/appStore'
+import { updateSeoForRoute } from '../services/seo'
 
 const routes = [
   {
@@ -76,7 +77,7 @@ router.beforeEach((to, from, next) => {
 })
 
 router.afterEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} — Record Note` : 'Record Note'
+  updateSeoForRoute(to)
 })
 
 export default router

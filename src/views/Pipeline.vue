@@ -874,7 +874,7 @@ const recoverPipelineAfterRefresh = async () => {
   if (!pipeline.folderName) return
 
   try {
-    const jobDetail = await api.getJob(pipeline.folderName)
+    const jobDetail = await api.getJob(pipeline.folderName, { cacheTtlMs: api.GET_CACHE_TTL_MS.JOB })
     const lastCompletedStep = syncPipelineFromManifest(jobDetail)
     if (!wasRunningBeforeReload) return
 

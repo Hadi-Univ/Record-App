@@ -1,4 +1,6 @@
 import { useAppStore } from '../stores/appStore'
+import { requestJson } from './httpClient'
+import { env } from '../config/env'
 
 /**
  * Returns true when running inside a Capacitor native app (Android / iOS).
@@ -6,20 +8,6 @@ import { useAppStore } from '../stores/appStore'
  */
 export function isCapacitorNative() {
   return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true
-}
-
-/**
- * Parse the error body from a failed fetch response.
- * Handles both JSON (`{ detail, message, error }`) and plain-text bodies.
- */
-async function parseErrorBody(response) {
-  const text = await response.text()
-  try {
-    const json = JSON.parse(text)
-    return json.detail || json.message || json.error || text
-  } catch {
-    return text || `Request failed (${response.status})`
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -32,7 +20,7 @@ async function parseErrorBody(response) {
  * Stores the ID token and user info in the app store.
  */
 export async function signInWithGoogleNative() {
-  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+  const GOOGLE_CLIENT_ID = env.googleClientId
 
   const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth').catch(() => {
     throw new Error(
@@ -69,17 +57,13 @@ export async function signInWithGoogleNative() {
 export async function loginBasic(email, password) {
   const store = useAppStore()
   const url = `${store.getBaseUrl()}/api/v1/auth/login`
-  const response = await fetch(url, {
+  const data = await requestJson(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email, password }),
+    timeoutMs: 15000
   })
 
-  if (!response.ok) {
-    throw new Error(await parseErrorBody(response))
-  }
-
-  const data = await response.json()
   store.state.token = data.token || data.access_token || ''
   store.state.refreshToken = data.refresh_token || ''
   store.state.tokenExpiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : 0
@@ -121,17 +105,13 @@ export function loginWithApiToken(token, name = 'API User', email = '') {
 export async function registerBasic(name, email, password) {
   const store = useAppStore()
   const url = `${store.getBaseUrl()}/api/v1/auth/register`
-  const response = await fetch(url, {
+  const data = await requestJson(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password })
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ name, email, password }),
+    timeoutMs: 15000
   })
 
-  if (!response.ok) {
-    throw new Error(await parseErrorBody(response))
-  }
-
-  const data = await response.json()
   const token = data.token || data.access_token
   if (token) {
     store.state.token = token
@@ -153,15 +133,12 @@ export async function registerBasic(name, email, password) {
 export async function forgotPassword(email) {
   const store = useAppStore()
   const url = `${store.getBaseUrl()}/api/v1/auth/forgot-password`
-  const response = await fetch(url, {
+  await requestJson(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email })
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email }),
+    timeoutMs: 15000
   })
-
-  if (!response.ok) {
-    throw new Error(await parseErrorBody(response))
-  }
 }
 
 /**
@@ -170,15 +147,12 @@ export async function forgotPassword(email) {
 export async function resetPassword(token, newPassword) {
   const store = useAppStore()
   const url = `${store.getBaseUrl()}/api/v1/auth/reset-password`
-  const response = await fetch(url, {
+  await requestJson(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, new_password: newPassword })
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ token, new_password: newPassword }),
+    timeoutMs: 15000
   })
-
-  if (!response.ok) {
-    throw new Error(await parseErrorBody(response))
-  }
 }
 
 /**
@@ -188,18 +162,16 @@ export async function resetPassword(token, newPassword) {
 export async function changePassword(currentPassword, newPassword) {
   const store = useAppStore()
   const url = `${store.getBaseUrl()}/api/v1/auth/change-password`
-  const response = await fetch(url, {
+  await requestJson(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      Accept: 'application/json',
       Authorization: `Bearer ${store.state.token}`
     },
-    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    timeoutMs: 15000
   })
-
-  if (!response.ok) {
-    throw new Error(await parseErrorBody(response))
-  }
 }
 
 /**
@@ -214,17 +186,13 @@ export async function refreshAccessToken() {
   }
 
   const url = `${store.getBaseUrl()}/api/v1/auth/refresh`
-  const response = await fetch(url, {
+  const data = await requestJson(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: store.state.refreshToken })
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ refresh_token: store.state.refreshToken }),
+    timeoutMs: 15000
   })
 
-  if (!response.ok) {
-    throw new Error(await parseErrorBody(response))
-  }
-
-  const data = await response.json()
   const newToken = data.token || data.access_token
   if (!newToken) {
     throw new Error('Refresh response did not contain a new access token.')

@@ -1,5 +1,11 @@
 <template>
   <div class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:bg-white focus:text-slate-900 focus:px-3 focus:py-2 focus:rounded-lg focus:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-600"
+    >
+      Skip to main content
+    </a>
     <!-- Top Navigation Bar (only when authenticated) -->
     <nav
       v-if="store.state.token"
@@ -71,10 +77,12 @@
     </nav>
 
     <!-- Page Content -->
-    <main class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
+    <main id="main-content" tabindex="-1" class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8 focus:outline-none">
       <router-view v-slot="{ Component }">
         <transition :name="transitionName" mode="out-in">
-          <component :is="Component" />
+          <ErrorBoundary>
+            <component :is="Component" />
+          </ErrorBoundary>
         </transition>
       </router-view>
     </main>
@@ -110,6 +118,7 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from './stores/appStore'
 import { refreshAccessToken } from './services/authService'
 import NavIcon from './components/NavIcon.vue'
+import ErrorBoundary from './components/ErrorBoundary.vue'
 import { useI18n } from './i18n/index.js'
 
 const store = useAppStore()
@@ -152,41 +161,3 @@ const navLinks = computed(() => [
 ])
 
 </script>
-
-<style>
-/* Forward navigation: new page slides in from right */
-.slide-left-enter-active {
-  transition: all 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  will-change: transform, opacity;
-}
-.slide-left-leave-active {
-  transition: all 0.22s cubic-bezier(0.55, 0, 1, 0.45);
-  will-change: transform, opacity;
-}
-.slide-left-enter-from {
-  opacity: 0;
-  transform: translateX(24px);
-}
-.slide-left-leave-to {
-  opacity: 0;
-  transform: translateX(-24px);
-}
-
-/* Backward navigation: new page slides in from left */
-.slide-right-enter-active {
-  transition: all 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  will-change: transform, opacity;
-}
-.slide-right-leave-active {
-  transition: all 0.22s cubic-bezier(0.55, 0, 1, 0.45);
-  will-change: transform, opacity;
-}
-.slide-right-enter-from {
-  opacity: 0;
-  transform: translateX(-24px);
-}
-.slide-right-leave-to {
-  opacity: 0;
-  transform: translateX(24px);
-}
-</style>

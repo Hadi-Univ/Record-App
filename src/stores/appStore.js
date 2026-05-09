@@ -1,4 +1,5 @@
 import { reactive, watch } from 'vue'
+import { env, normalizeBaseUrl } from '../config/env'
 
 const STATE_KEY = 'audio_pipeline_state_v3'
 
@@ -27,7 +28,7 @@ const state = reactive({
     apiKey: savedState.settings?.apiKey || '',
     apiUrl: savedState.settings?.apiUrl !== undefined
       ? savedState.settings.apiUrl
-      : (import.meta.env.VITE_API_BASE_URL || '')
+      : env.apiBaseUrl
   },
   pipeline: {
     currentStep: savedState.pipeline?.currentStep || 1,
@@ -95,8 +96,7 @@ const clearPipeline = () => {
 }
 
 const getBaseUrl = () => {
-  const url = state.settings.apiUrl.trim()
-  return url.endsWith('/') ? url.slice(0, -1) : url
+  return normalizeBaseUrl(state.settings.apiUrl)
 }
 
 /** Returns true when the stored access token has passed its expiry timestamp.

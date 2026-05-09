@@ -231,7 +231,20 @@
                 </a>
               </div>
             </div>
-            <article class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed markdown-summary" v-html="renderedSummary"></article>
+            <article
+              class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed
+                [&_h1]:font-bold [&_h2]:font-bold [&_h3]:font-bold [&_h4]:font-bold [&_h5]:font-bold [&_h6]:font-bold
+                [&_h1]:text-slate-900 [&_h2]:text-slate-900 [&_h3]:text-slate-900 [&_h4]:text-slate-900 [&_h5]:text-slate-900 [&_h6]:text-slate-900
+                [&_h1]:mt-4 [&_h2]:mt-4 [&_h3]:mt-4 [&_h4]:mt-4 [&_h5]:mt-4 [&_h6]:mt-4
+                [&_h1]:mb-2 [&_h2]:mb-2 [&_h3]:mb-2 [&_h4]:mb-2 [&_h5]:mb-2 [&_h6]:mb-2
+                [&_p]:my-2 [&_ul]:my-2 [&_ol]:my-2 [&_ul]:ml-5 [&_ol]:ml-5 [&_li]:my-1
+                [&_code]:rounded [&_code]:bg-slate-200 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.85em]
+                [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-slate-900 [&_pre]:p-3 [&_pre]:text-slate-200
+                [&_pre_code]:bg-transparent [&_pre_code]:p-0
+                [&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-slate-300 [&_blockquote]:pl-3 [&_blockquote]:text-slate-600
+                [&_a]:text-indigo-600 [&_a]:underline"
+              v-html="renderedSummary"
+            ></article>
           </div>
           <!-- Empty state with CTA -->
           <div v-else class="flex flex-col items-center justify-center py-12 text-center">
@@ -324,7 +337,7 @@
                     <div class="w-28 text-xs font-semibold text-slate-700 truncate pr-2" :title="setting.name">{{ setting.name }}</div>
                     <div class="flex-grow h-6 bg-slate-100 border border-slate-200 relative rounded-md overflow-hidden">
                       <div v-for="seg in getSegmentsForSpeaker(id)" :key="seg._id"
-                           class="segment"
+                           class="absolute h-full rounded border border-black/10 transition-transform hover:scale-y-110 hover:z-10 hover:cursor-help"
                            :style="{ left: (seg.start / maxTime) * 100 + '%', width: ((seg.end - seg.start) / maxTime) * 100 + '%', background: setting.color }"
                            :title="seg.text">
                       </div>
@@ -344,7 +357,7 @@
               <div class="flex flex-col space-y-4 max-h-[600px] overflow-y-auto pr-2 pb-4">
                 <div v-if="filteredTranscript.length === 0" class="text-sm text-slate-400 italic text-center py-4">Data kosong.</div>
                 <div v-for="item in filteredTranscript" :key="item._id"
-                     class="chat-bubble relative p-4 rounded-xl max-w-[85%] md:max-w-[80%] border-l-[6px] shadow-sm transition-all duration-200"
+                     class="group relative p-4 rounded-xl max-w-[85%] md:max-w-[80%] border-l-[6px] shadow-sm transition-all duration-200"
                      :class="{'ml-auto': item.speaker % 2 !== 0}"
                      :style="{ backgroundColor: hexToRgba(speakerSettings[item.speaker]?.color || '#000', 0.08), borderLeftColor: speakerSettings[item.speaker]?.color || '#000' }">
                   <div class="flex flex-wrap items-center gap-2 mb-2 text-xs font-bold" :style="{ color: speakerSettings[item.speaker]?.color }">
@@ -352,16 +365,18 @@
                     <span class="text-slate-400 font-normal">•</span>
                     <span>{{ item.start }}s - {{ item.end }}s</span>
                     <span class="bg-black/5 text-slate-600 px-2 py-0.5 rounded ml-1">{{ getLang(item).toUpperCase() }}</span>
-                    <button @click="deleteSegment(item._id)" class="btn-delete-segment ml-auto flex items-center gap-1 bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1 rounded text-[10px]">
+                    <button @click="deleteSegment(item._id)" class="ml-auto flex items-center gap-1 bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1 rounded text-[10px] opacity-0 pointer-events-none transition-opacity duration-200 group-hover:opacity-100 group-hover:pointer-events-auto">
                       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                       Hapus
                     </button>
                   </div>
-                  <div class="p-1.5 border border-transparent border-dashed rounded transition-colors text-sm text-slate-800 leading-relaxed hover:border-slate-300 hover:bg-white/40 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 cursor-text"
-                       contenteditable="true"
-                       @blur="handleTextEdit(item._id, $event.target.innerText)">
-                    {{ item.text }}
-                  </div>
+                  <div
+                       class="p-1.5 border border-transparent border-dashed rounded transition-colors text-sm text-slate-800 leading-relaxed hover:border-slate-300 hover:bg-white/40 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 cursor-text empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400"
+                        contenteditable="true"
+                        data-placeholder="Ketik teks di sini..."
+                        @blur="handleTextEdit(item._id, $event.target.innerText)">
+                     {{ item.text }}
+                   </div>
                 </div>
               </div>
             </div>
@@ -640,11 +655,12 @@
   </div>
 </template>
 <script setup>
-import { ref, reactive, computed, watch, nextTick } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
-import { getJob, getDownloadUrl, summarizeJob, visualizeJob, translateJob, saveTranscript, generateFlashcards, sendChatMessage } from '../services/api'
+import { getJob, getDownloadUrl, fetchDownloadText, fetchDownloadJson, summarizeJob, visualizeJob, translateJob, saveTranscript, generateFlashcards, sendChatMessage, GET_CACHE_TTL_MS } from '../services/api'
+import { createRequestCanceller } from '../services/httpClient'
 import { useAppStore } from '../stores/appStore'
 import { useI18n } from '../i18n/index.js'
 
@@ -759,6 +775,7 @@ const activeTranscriptTab = ref('editor')  // 'editor' | 'raw'
 // --- Core API Data ---
 const loading = ref(false)
 const error = ref('')
+const requestCanceller = createRequestCanceller()
 const manifest = ref(null)
 const detail = ref({
   transcript: '',
@@ -1213,6 +1230,7 @@ const saveCachedDetail = () => {
 // Fetch Logic
 const loadDetail = async () => {
   if (!folderName.value) return
+  const signal = requestCanceller.nextSignal('detail-load')
   loading.value = true
   error.value = ''
   resetDetailState()
@@ -1220,63 +1238,68 @@ const loadDetail = async () => {
   if (cached) applyCachedDetail(cached)
   
   try {
-    const jobDetail = await getJob(folderName.value)
+    const jobDetail = await getJob(folderName.value, { signal, cacheTtlMs: GET_CACHE_TTL_MS.JOB })
     manifest.value = jobDetail
     const files = jobDetail?.files || {}
-    
-    // 1. Fetch Summary
-    if (files.summary_txt) {
-      try {
-        const summaryUrl = getDownloadUrl(folderName.value, 'summary_txt')
-        const response = await fetch(summaryUrl)
-        if (response.ok) detail.value.summary = await response.text()
-      } catch (e) { console.error('Error fetching summary:', e) }
+
+    const [summaryResult, transcriptJsonResult, transcriptTextResult] = await Promise.allSettled([
+      files.summary_txt
+        ? fetchDownloadText(folderName.value, 'summary_txt', {
+            signal,
+            errorLabel: 'Failed to load summary'
+          })
+        : Promise.resolve(null),
+      files.transcript_json
+        ? fetchDownloadJson(folderName.value, 'transcript_json', {
+            signal,
+            errorLabel: 'Failed to load interactive transcript'
+          })
+        : Promise.resolve(null),
+      files.transcript_txt
+        ? fetchDownloadText(folderName.value, 'transcript_txt', {
+            signal,
+            errorLabel: 'Failed to load transcript'
+          })
+        : Promise.resolve(null)
+    ])
+
+    if (summaryResult.status === 'fulfilled' && typeof summaryResult.value === 'string') {
+      detail.value.summary = summaryResult.value
     } else if (!cached?.summary) {
       detail.value.summary = ''
     }
 
-    // 2. Fetch INTERACTIVE JSON Transcript
-    if (files.transcript_json) {
-      try {
-        const jsonUrl = getDownloadUrl(folderName.value, 'transcript_json')
-        const response = await fetch(jsonUrl)
-        if (response.ok) {
-          const rawData = await response.json()
-          transcriptData.value = rawData.map((item, index) => ({ ...item, _id: index }))
-        }
-      } catch (e) { console.error('Error fetching JSON transcript:', e) }
+    if (transcriptJsonResult.status === 'fulfilled' && Array.isArray(transcriptJsonResult.value)) {
+      transcriptData.value = transcriptJsonResult.value.map((item, index) => ({ ...item, _id: index }))
     } else if (!Array.isArray(cached?.transcriptData) || !cached.transcriptData.length) {
       transcriptData.value = []
     }
-    if (transcriptData.value.length) {
-      initDashboard()
-    } else {
-      resetDashboard()
-    }
-    
-    // 3. ALWAYS Fetch RAW TXT Transcript
-    if (files.transcript_txt) {
-      try {
-        const transcriptUrl = getDownloadUrl(folderName.value, 'transcript_txt')
-        const response = await fetch(transcriptUrl)
-        if (response.ok) detail.value.transcript = await response.text()
-      } catch (e) { console.error('Error fetching TXT transcript:', e) }
+
+    if (transcriptTextResult.status === 'fulfilled' && typeof transcriptTextResult.value === 'string') {
+      detail.value.transcript = transcriptTextResult.value
     } else if (!cached?.transcript) {
       detail.value.transcript = ''
     }
+
+    if (transcriptData.value.length) initDashboard()
+    else resetDashboard()
+
     saveCachedDetail()
     // Save original content for the language switcher (shallow copy with _id intact)
     originalDetail.value = { summary: detail.value.summary, transcript: detail.value.transcript }
     originalTranscriptData.value = transcriptData.value.map(item => ({ ...item }))
 
   } catch (err) {
+    if (signal.aborted) return
     if (!applyCachedDetail(cached)) {
       error.value = err.message || 'Failed to load job detail.'
     } else {
       error.value = 'Unable to connect: displaying saved job detail from this device.'
     }
   } finally {
-    loading.value = false
+    if (!signal.aborted) {
+      loading.value = false
+    }
   }
 }
 
@@ -1360,48 +1383,60 @@ const switchToTranslation = async (langPair) => {
   }
 
   viewLoading.value = true
+  const signal = requestCanceller.nextSignal('translation-switch')
   const translations = manifest.value?.translations?.[langPair] || {}
   try {
-    // Fetch translated summary
-    if (translations.summary_txt) {
-      const url = getDownloadUrl(folderName.value, 'summary_txt', langPair)
-      const r = await fetch(url)
-      if (r.ok) detail.value.summary = await r.text()
-      else detail.value.summary = originalDetail.value.summary
-    } else {
-      detail.value.summary = originalDetail.value.summary
-    }
+    const [summaryResult, jsonResult, transcriptResult] = await Promise.allSettled([
+      translations.summary_txt
+        ? fetchDownloadText(folderName.value, 'summary_txt', {
+            langPair,
+            signal,
+            errorLabel: 'Failed to load translated summary'
+          })
+        : Promise.resolve(null),
+      translations.transcript_json
+        ? fetchDownloadJson(folderName.value, 'transcript_json', {
+            langPair,
+            signal,
+            errorLabel: 'Failed to load translated transcript'
+          })
+        : Promise.resolve(null),
+      translations.transcript_txt
+        ? fetchDownloadText(folderName.value, 'transcript_txt', {
+            langPair,
+            signal,
+            errorLabel: 'Failed to load translated transcript'
+          })
+        : Promise.resolve(null)
+    ])
 
-    // Fetch translated JSON transcript
-    if (translations.transcript_json) {
-      const url = getDownloadUrl(folderName.value, 'transcript_json', langPair)
-      const r = await fetch(url)
-      if (r.ok) {
-        const raw = await r.json()
-        transcriptData.value = raw.map((item, i) => ({ ...item, _id: i }))
-        initDashboard()
-      } else {
-        restoreOriginalTranscript()
-      }
+    detail.value.summary = summaryResult.status === 'fulfilled' && typeof summaryResult.value === 'string'
+      ? summaryResult.value
+      : originalDetail.value.summary
+
+    if (jsonResult.status === 'fulfilled' && Array.isArray(jsonResult.value)) {
+      transcriptData.value = jsonResult.value.map((item, i) => ({ ...item, _id: i }))
+      initDashboard()
     } else {
       restoreOriginalTranscript()
     }
 
-    // Fetch translated raw TXT transcript
-    if (translations.transcript_txt) {
-      const url = getDownloadUrl(folderName.value, 'transcript_txt', langPair)
-      const r = await fetch(url)
-      if (r.ok) detail.value.transcript = await r.text()
-      else detail.value.transcript = originalDetail.value.transcript
-    } else {
-      detail.value.transcript = originalDetail.value.transcript
-    }
+    detail.value.transcript = transcriptResult.status === 'fulfilled' && typeof transcriptResult.value === 'string'
+      ? transcriptResult.value
+      : originalDetail.value.transcript
   } catch (e) {
+    if (signal.aborted) return
     viewError.value = `Failed to load translated content: ${e.message}`
   } finally {
-    viewLoading.value = false
+    if (!signal.aborted) {
+      viewLoading.value = false
+    }
   }
 }
+
+onBeforeUnmount(() => {
+  requestCanceller.clearAll()
+})
 
 watch(() => route.params.folderName, loadDetail, { immediate: true })
 
@@ -1422,72 +1457,3 @@ watch(loading, (isLoading) => {
   }
 })
 </script>
-
-<style scoped>
-.segment {
-  position: absolute; 
-  height: 100%; 
-  border-radius: 4px;
-  border: 1px solid rgba(0,0,0,0.1); 
-  transition: transform 0.2s;
-}
-.segment:hover { 
-  transform: scaleY(1.15); 
-  z-index: 10; 
-  cursor: help; 
-}
-[contenteditable]:empty:before { 
-  content: "Ketik teks di sini..."; 
-  color: #94a3b8; 
-}
-.chat-bubble .btn-delete-segment { 
-  opacity: 0; 
-  pointer-events: none; 
-  transition: 0.2s; 
-}
-.chat-bubble:hover .btn-delete-segment { 
-  opacity: 1; 
-  pointer-events: auto; 
-}
-.markdown-summary :deep(h1),
-.markdown-summary :deep(h2),
-.markdown-summary :deep(h3),
-.markdown-summary :deep(h4),
-.markdown-summary :deep(h5),
-.markdown-summary :deep(h6) {
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0.9rem 0 0.5rem;
-}
-.markdown-summary :deep(p) { margin: 0.5rem 0; }
-.markdown-summary :deep(ul),
-.markdown-summary :deep(ol) { margin: 0.6rem 0 0.6rem 1.2rem; }
-.markdown-summary :deep(li) { margin: 0.25rem 0; }
-.markdown-summary :deep(code) {
-  background: #e2e8f0;
-  padding: 0.1rem 0.3rem;
-  border-radius: 0.25rem;
-  font-size: 0.85em;
-}
-.markdown-summary :deep(pre) {
-  background: #0f172a;
-  color: #e2e8f0;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-}
-.markdown-summary :deep(pre code) {
-  background: transparent;
-  padding: 0;
-}
-.markdown-summary :deep(blockquote) {
-  border-left: 4px solid #cbd5e1;
-  padding-left: 0.75rem;
-  color: #475569;
-  margin: 0.75rem 0;
-}
-.markdown-summary :deep(a) {
-  color: #4f46e5;
-  text-decoration: underline;
-}
-</style>

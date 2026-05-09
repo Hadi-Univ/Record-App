@@ -1,3 +1,44 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :focus-visible {
+    @apply outline-none ring-2 ring-indigo-600 ring-offset-2;
+  }
+}
+
+@layer components {
+  .slide-left-enter-active,
+  .slide-right-enter-active {
+    @apply transition-all duration-300 [transition-timing-function:cubic-bezier(0.25,0.46,0.45,0.94)] will-change-transform;
+  }
+
+  .slide-left-leave-active,
+  .slide-right-leave-active {
+    @apply transition-all duration-200 [transition-timing-function:cubic-bezier(0.55,0,1,0.45)] will-change-transform;
+  }
+
+  .slide-left-enter-from {
+    @apply opacity-0 translate-x-6;
+  }
+
+  .slide-left-leave-to {
+    @apply opacity-0 -translate-x-6;
+  }
+
+  .slide-right-enter-from {
+    @apply opacity-0 -translate-x-6;
+  }
+
+  .slide-right-leave-to {
+    @apply opacity-0 translate-x-6;
+  }
+}
+
+@layer utilities {
+  /* Lift commonly used helper text to accessible contrast against white backgrounds. */
+  .text-slate-400 {
+    color: rgb(100 116 139 / var(--tw-text-opacity, 1));
+  }
+}

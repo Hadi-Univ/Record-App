@@ -20,6 +20,20 @@ export default defineConfig(({ mode }) => {
         }
       }
     },
+    build: {
+      target: 'es2020',
+      cssCodeSplit: true,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return
+            if (id.includes('markdown-it') || id.includes('dompurify')) return 'markdown'
+            if (id.includes('/src/i18n/')) return 'i18n'
+            return 'vendor'
+          }
+        }
+      }
+    },
     test: {
       environment: 'happy-dom',
       globals: true,

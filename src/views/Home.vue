@@ -127,14 +127,13 @@
 
       <!-- Job list -->
       <div v-else class="divide-y divide-slate-100">
-        <div
+        <button
           v-for="job in recentJobs"
           :key="job.folder_name"
+          type="button"
           @click="openJob(job.folder_name)"
-          @keydown.enter="openJob(job.folder_name)"
-          role="button"
-          tabindex="0"
-          class="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition cursor-pointer group"
+          :aria-label="`Open job ${job.folder_name}`"
+          class="w-full text-left flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-inset"
         >
           <div class="flex items-center gap-3 min-w-0">
             <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold flex-shrink-0" :class="statusClass(job.status)">
@@ -148,7 +147,7 @@
           <svg class="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
           </svg>
-        </div>
+        </button>
       </div>
     </div>
 
@@ -193,7 +192,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/appStore'
-import { getHistory } from '../services/api.js'
+import { getHistory, GET_CACHE_TTL_MS } from '../services/api.js'
 import { useI18n } from '../i18n/index.js'
 
 const store = useAppStore()
@@ -279,7 +278,7 @@ const loadHistory = async () => {
   loading.value = true
   error.value = ''
   try {
-    const result = await getHistory()
+    const result = await getHistory({ cacheTtlMs: GET_CACHE_TTL_MS.HISTORY })
     const normalized = Array.isArray(result) ? result : (result.jobs || result.data || [])
     jobs.value = normalized
     store.state.historyCache = normalized

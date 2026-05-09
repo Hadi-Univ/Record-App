@@ -337,10 +337,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/appStore'
 import { changePassword } from '../services/authService'
+import { createRequestCanceller, requestJson } from '../services/httpClient'
 import { useI18n } from '../i18n/index.js'
 
 const store = useAppStore()
@@ -357,6 +358,7 @@ const connectionStatus = ref(null)
 const contributors = ref([])
 const contributorsLoading = ref(false)
 const contributorsError = ref('')
+const requestCanceller = createRequestCanceller()
 
 // Change password
 const showPasswords = ref(false)
@@ -409,18 +411,17 @@ const handleLogout = () => {
 }
 
 const fetchContributors = async () => {
+  const signal = requestCanceller.nextSignal('contributors')
   contributorsLoading.value = true
   contributorsError.value = ''
   try {
-    const response = await fetch(GITHUB_CONTRIBUTORS_URL, {
+    const data = await requestJson(GITHUB_CONTRIBUTORS_URL, {
+      method: 'GET',
       headers: { Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(GITHUB_API_TIMEOUT_MS)
+      timeoutMs: GITHUB_API_TIMEOUT_MS,
+      retries: 1,
+      signal
     })
-    if (!response.ok) {
-      throw new Error(t('settings.creatorsLoadFailedStatus', { status: response.status }))
-    }
-
-    const data = await response.json()
     const unknownContributor = t('settings.unknownContributor')
     contributors.value = Array.isArray(data)
       ? data.map((contributor, index) => {
@@ -435,7 +436,10 @@ const fetchContributors = async () => {
       })
       : []
   } catch (err) {
-    if (err?.name === 'TimeoutError') {
+    if (signal.aborted) {
+      return
+    }
+    if (err?.name === 'TimeoutError' || err?.message?.toLowerCase?.().includes('timed out')) {
       contributorsError.value = t('settings.creatorsLoadTimedOut')
     } else {
       contributorsError.value = t('settings.creatorsLoadFailedGeneric')
@@ -447,24 +451,40 @@ const fetchContributors = async () => {
 }
 
 const testConnection = async () => {
+  const signal = requestCanceller.nextSignal('health-check')
   testing.value = true
   connectionStatus.value = null
   try {
     const baseUrl = store.getBaseUrl()
-    const response = await fetch(`${baseUrl}/api/v1/health`, { signal: AbortSignal.timeout(5000) })
-    if (response.ok) {
-      connectionStatus.value = { ok: true, message: t('settings.connectedSuccessfully') }
-    } else {
-      connectionStatus.value = { ok: false, message: t('settings.connectionStatus', { status: response.status }) }
-    }
+    await requestJson(`${baseUrl}/api/v1/health`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      timeoutMs: 5000,
+      retries: 1,
+      signal
+    })
+    connectionStatus.value = { ok: true, message: t('settings.connectedSuccessfully') }
   } catch (err) {
+    if (signal.aborted) {
+      return
+    }
+    if (err?.status) {
+      connectionStatus.value = { ok: false, message: t('settings.connectionStatus', { status: err.status }) }
+      return
+    }
     connectionStatus.value = { ok: false, message: t('settings.connectionFailed', { error: err.message }) }
   } finally {
-    testing.value = false
+    if (!signal.aborted) {
+      testing.value = false
+    }
   }
 }
 
 onMounted(() => {
   fetchContributors()
+})
+
+onBeforeUnmount(() => {
+  requestCanceller.clearAll()
 })
 </script>

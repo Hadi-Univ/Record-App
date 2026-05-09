@@ -13,10 +13,11 @@ A mobile-friendly Vue 3 Single Page Application (SPA) for processing audio files
 
 | Route | Description |
 |-------|-------------|
-| `/login` | Google OAuth sign-in |
-| `/` | Home — Audio pipeline (upload, transcribe, summarize, visualize) |
-| `/history` | History — Past jobs with downloadable artifacts |
-| `/settings` | Settings — LLM provider, API key, backend URL |
+| `/login` | Authentication (email/password, API token, Google GIS on web) |
+| `/` | Home dashboard — quick stats, recent jobs, and shortcuts |
+| `/pipeline` | Audio pipeline (upload/record, transcribe, summarize, visualize) |
+| `/history` | Past jobs with downloadable artifacts and re-run actions |
+| `/settings` | LLM provider, API key, backend URL, and account controls |
 
 ## Getting Started
 
@@ -60,6 +61,7 @@ Set `VITE_API_BASE_URL` in a `.env` file (copy from `.env.example`) and the fron
 
 ```env
 VITE_API_BASE_URL=https://your-backend.example.com
+VITE_SITE_URL=https://your-frontend.example.com
 ```
 
 When `VITE_API_BASE_URL` is set, the Vite proxy target is also updated so the dev server forwards requests to the same host.
@@ -114,7 +116,10 @@ All runtime settings are saved to `localStorage` automatically. Configure on the
 | `GET`  | `/api/v1/download/{folder_name}/{file_type}` | Download an artifact |
 | `GET`  | `/api/v1/health` | Backend health check |
 
-All API requests are authenticated via `?google_token=<token>` query parameter.
+API requests are managed by a centralized HTTP client with timeout, retry, and cancellation handling.
+
+- Read endpoints send `Authorization: Bearer <token>`
+- Some write/download endpoints additionally include `google_token` payload/query for backend compatibility
 
 ### Download file types
 
