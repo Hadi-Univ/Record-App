@@ -124,15 +124,16 @@ describe('visualizeJob', () => {
 })
 
 describe('getJob', () => {
-  it('GETs /api/v1/job/{folderName} with google_token query param', async () => {
+  it('GETs /api/v1/job/{folderName} with Authorization header', async () => {
     const result = { folder_name: 'job_1', status: 'done' }
     global.fetch = vi.fn().mockResolvedValue(makeResponse(result))
 
     const data = await api.getJob('job_1')
 
-    const [url] = global.fetch.mock.calls[0]
+    const [url, opts] = global.fetch.mock.calls[0]
     expect(url).toContain('/api/v1/job/job_1')
-    expect(url).toContain('google_token=test-token')
+    expect(url).not.toContain('google_token=')
+    expect(opts.headers.Authorization).toBe('Bearer test-token')
     expect(data).toEqual(result)
   })
 
@@ -147,18 +148,33 @@ describe('getJob', () => {
     global.fetch = vi.fn().mockResolvedValue(makeResponse('Not found', false, 404))
     await expect(api.getJob('job_1')).rejects.toThrow('Job fetch failed (404)')
   })
+
+  it('deduplicates in-flight duplicate GET calls for the same job', async () => {
+    let resolveFetch
+    const responsePromise = new Promise((resolve) => { resolveFetch = resolve })
+    global.fetch = vi.fn().mockReturnValue(responsePromise)
+
+    const first = api.getJob('job_1')
+    const second = api.getJob('job_1')
+    expect(global.fetch).toHaveBeenCalledOnce()
+
+    resolveFetch(makeResponse({ folder_name: 'job_1', status: 'done' }))
+    await expect(first).resolves.toEqual({ folder_name: 'job_1', status: 'done' })
+    await expect(second).resolves.toEqual({ folder_name: 'job_1', status: 'done' })
+  })
 })
 
 describe('getHistory', () => {
-  it('GETs /api/v1/history with google_token query param', async () => {
+  it('GETs /api/v1/history with Authorization header', async () => {
     const result = [{ folder_name: 'job_1' }]
     global.fetch = vi.fn().mockResolvedValue(makeResponse(result))
 
     const data = await api.getHistory()
 
-    const [url] = global.fetch.mock.calls[0]
+    const [url, opts] = global.fetch.mock.calls[0]
     expect(url).toContain('/api/v1/history')
-    expect(url).toContain('google_token=test-token')
+    expect(url).not.toContain('google_token=')
+    expect(opts.headers.Authorization).toBe('Bearer test-token')
     expect(data).toEqual(result)
   })
 
@@ -251,15 +267,16 @@ describe('uploadChunk', () => {
 })
 
 describe('getUploadStatus', () => {
-  it('GETs /api/v1/upload/status/{upload_id} with google_token', async () => {
+  it('GETs /api/v1/upload/status/{upload_id} with Authorization header', async () => {
     const result = { upload_id: 'up_abc', total_chunks: 5, received_chunks: [0, 1], missing_chunks: [2, 3, 4] }
     global.fetch = vi.fn().mockResolvedValue(makeResponse(result))
 
     const data = await api.getUploadStatus('up_abc')
 
-    const [url] = global.fetch.mock.calls[0]
+    const [url, opts] = global.fetch.mock.calls[0]
     expect(url).toContain('/api/v1/upload/status/up_abc')
-    expect(url).toContain('google_token=test-token')
+    expect(url).not.toContain('google_token=')
+    expect(opts.headers.Authorization).toBe('Bearer test-token')
     expect(data).toEqual(result)
   })
 

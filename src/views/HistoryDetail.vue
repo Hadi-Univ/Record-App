@@ -752,33 +752,6 @@ const TRANSLATE_LANGUAGES = [
   { code: 'Zulu', label: 'Zulu' }
 ]
 
-// Map Whisper/ISO 639-1 language codes to full English names for source-language auto-detection
-const WHISPER_LANG_TO_NAME = {
-  af: 'Afrikaans', sq: 'Albanian', am: 'Amharic', ar: 'Arabic',
-  hy: 'Armenian', az: 'Azerbaijani', ba: 'Bashkir', eu: 'Basque',
-  be: 'Belarusian', bn: 'Bengali', bs: 'Bosnian', bg: 'Bulgarian',
-  my: 'Burmese', ca: 'Catalan', zh: 'Chinese', hr: 'Croatian',
-  cs: 'Czech', da: 'Danish', nl: 'Dutch', en: 'English',
-  et: 'Estonian', fo: 'Faroese', fi: 'Finnish', fr: 'French',
-  gl: 'Galician', ka: 'Georgian', de: 'German', el: 'Greek',
-  gu: 'Gujarati', ha: 'Hausa', he: 'Hebrew', hi: 'Hindi',
-  hu: 'Hungarian', is: 'Icelandic', id: 'Indonesian', it: 'Italian',
-  ja: 'Japanese', jv: 'Javanese', kn: 'Kannada', kk: 'Kazakh',
-  km: 'Khmer', ko: 'Korean', ky: 'Kyrgyz', lo: 'Lao',
-  lv: 'Latvian', ln: 'Lingala', lt: 'Lithuanian', mk: 'Macedonian',
-  mg: 'Malagasy', ms: 'Malay', ml: 'Malayalam', mt: 'Maltese',
-  mi: 'Maori', mr: 'Marathi', mn: 'Mongolian', ne: 'Nepali',
-  no: 'Norwegian', or: 'Oriya', ps: 'Pashto', fa: 'Persian',
-  pl: 'Polish', pt: 'Portuguese', pa: 'Punjabi', ro: 'Romanian',
-  ru: 'Russian', sr: 'Serbian', sd: 'Sindhi', si: 'Sinhala',
-  sk: 'Slovak', sl: 'Slovenian', so: 'Somali', es: 'Spanish',
-  su: 'Sundanese', sw: 'Swahili', sv: 'Swedish', tl: 'Tagalog',
-  tg: 'Tajik', ta: 'Tamil', te: 'Telugu', th: 'Thai',
-  bo: 'Tibetan', tr: 'Turkish', tk: 'Turkmen', uk: 'Ukrainian',
-  ur: 'Urdu', uz: 'Uzbek', vi: 'Vietnamese', cy: 'Welsh',
-  yo: 'Yoruba', zu: 'Zulu'
-}
-
 // --- Tab Navigation State ---
 const activeTab = ref('summary')           // 'summary' | 'transcript' | 'ai' | 'actions'
 const activeTranscriptTab = ref('editor')  // 'editor' | 'raw'
@@ -815,20 +788,8 @@ const translateForm = reactive({
 const translateLangSearch = ref('')
 const translateLangDropdownOpen = ref(false)
 
-// Compute dominant source language from transcript segments by total text length.
-// Segments without text are excluded (length 0) to avoid skewing the result.
 const detectedSourceLang = computed(() => {
-  if (!transcriptData.value.length) return ''
-  const counts = {}
-  for (const item of transcriptData.value) {
-    const len = item.text?.length || 0
-    if (!len) continue
-    const code = getLang(item)
-    const name = WHISPER_LANG_TO_NAME[code] || code
-    counts[name] = (counts[name] || 0) + len
-  }
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1])
-  return sorted[0]?.[0] || ''
+  return String(manifest.value?.detected_source_language || '').trim()
 })
 
 const filteredTargetLanguages = computed(() => {

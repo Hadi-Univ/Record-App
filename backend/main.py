@@ -21,6 +21,7 @@ import shutil
 import traceback
 import contextlib
 import datetime
+import logging
 import ffmpeg
 from dotenv import load_dotenv
 from filelock import FileLock, Timeout
@@ -31,7 +32,7 @@ import urllib.request
 import urllib.error
 import hashlib
 
-from fastapi import BackgroundTasks, FastAPI, UploadFile, File, Form, HTTPException, Header
+from fastapi import BackgroundTasks, FastAPI, UploadFile, File, Form, HTTPException, Header, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -81,6 +82,17 @@ _ESTIMATE_RATES: Dict[str, float] = {
 }
 
 _CLOUD_PROVIDERS = {"openai", "anthropic", "groq", "google", "gemini"}
+logger = logging.getLogger(__name__)
+
+_COMMON_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+_DEFAULT_DEV_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 # Files produced per job folder:
 #   <base>.wav
@@ -146,13 +158,115 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 
+
+def _parse_bool_env(var_name: str, default: bool) -> bool:
+    """Parse a boolean environment variable with a safe default."""
+    raw = os.getenv(var_name)
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{var_name} must be a boolean value.")
+
+
+def _parse_csv_env(var_name: str, default: List[str]) -> List[str]:
+    """Parse comma-separated env values and trim whitespace."""
+    raw = os.getenv(var_name)
+    if raw is None or not raw.strip():
+        return list(default)
+    parsed = [item.strip() for item in raw.split(",") if item.strip()]
+    if not parsed:
+        raise ValueError(f"{var_name} must contain at least one non-empty value.")
+    return parsed
+
+
+def _build_cors_config() -> Dict[str, Any]:
+    """
+    Build CORS middleware settings from environment variables.
+
+    This keeps CORS strict by default in production and convenient in
+    development.  In production, wildcard origins are explicitly rejected.
+    """
+    # APP_ENV takes precedence over ENVIRONMENT when both are present.
+    app_env = (os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "development").strip().lower()
+    is_production = app_env in {"production", "prod"}
+
+    try:
+        default_origins = [] if is_production else _DEFAULT_DEV_CORS_ORIGINS
+        origins = _parse_csv_env("CORS_ALLOW_ORIGINS", default_origins)
+        allow_credentials = _parse_bool_env("CORS_ALLOW_CREDENTIALS", True)
+        allow_methods = _parse_csv_env("CORS_ALLOW_METHODS", _COMMON_HTTP_METHODS)
+        allow_headers = _parse_csv_env(
+            "CORS_ALLOW_HEADERS",
+            ["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
+        )
+        expose_headers = _parse_csv_env("CORS_EXPOSE_HEADERS", [])
+        max_age = int(os.getenv("CORS_MAX_AGE", "600"))
+        if max_age < 0:
+            raise ValueError("CORS_MAX_AGE must be >= 0.")
+
+        # OPTIONS is required for browser preflight checks.
+        if not any(method.upper() == "OPTIONS" for method in allow_methods):
+            allow_methods.append("OPTIONS")
+
+        # Prevent insecure/invalid credential + wildcard configuration.
+        if "*" in origins:
+            if is_production:
+                raise ValueError("CORS_ALLOW_ORIGINS cannot include '*' in production.")
+            if allow_credentials:
+                raise ValueError(
+                    "CORS_ALLOW_ORIGINS='*' cannot be used when CORS_ALLOW_CREDENTIALS=true."
+                )
+
+        if not origins:
+            logger.warning(
+                "CORS is enabled with no allowed origins; browser cross-origin requests will be blocked."
+            )
+
+        return {
+            "allow_origins": origins,
+            "allow_credentials": allow_credentials,
+            "allow_methods": allow_methods,
+            "allow_headers": allow_headers,
+            "expose_headers": expose_headers,
+            "max_age": max_age,
+        }
+    except Exception as exc:
+        # In production we fail fast to avoid silently running with unsafe CORS.
+        if is_production:
+            raise RuntimeError(f"Invalid production CORS configuration: {exc}") from exc
+
+        logger.warning(
+            "Invalid CORS configuration (%s). Falling back to safe development defaults.",
+            exc,
+        )
+        return {
+            "allow_origins": _DEFAULT_DEV_CORS_ORIGINS,
+            "allow_credentials": True,
+            "allow_methods": _COMMON_HTTP_METHODS,
+            "allow_headers": ["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
+            "expose_headers": [],
+            "max_age": 600,
+        }
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    **_build_cors_config(),
 )
+
+@app.middleware("http")
+async def add_api_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+    return response
 
 
 # =========================================================
@@ -207,6 +321,20 @@ def _resolve_user(token: str) -> str:
     if not safe_id:
         raise HTTPException(status_code=401, detail="Invalid user identity.")
     return safe_id
+
+
+def _resolve_user_from_auth(
+    google_token: Optional[str] = None,
+    authorization: Optional[str] = None,
+) -> str:
+    """Resolve user identity using Bearer auth first, then google_token fallback."""
+    bearer_token = ""
+    if authorization and authorization.startswith("Bearer "):
+        bearer_token = authorization[7:].strip()
+    token = bearer_token or (google_token or "").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    return _resolve_user(token)
 
 
 # =========================================================
@@ -678,10 +806,11 @@ _ALL_STEPS = ["transcribe", "summarize", "visualize", "translate"]
 
 @app.get("/api/v1/estimate")
 async def estimate_processing(
-    google_token: str,
     audio_duration_seconds: float,
+    google_token: Optional[str] = None,
     steps: str = "transcribe,summarize,visualize,translate",
     provider: str = "ollama",
+    authorization: Optional[str] = Header(None),
 ):
     """
     Return estimated processing times for one or more pipeline steps.
@@ -717,7 +846,7 @@ async def estimate_processing(
           "total_estimate_human": "~4 min 21 sec"
         }
     """
-    _resolve_user(google_token)
+    _resolve_user_from_auth(google_token=google_token, authorization=authorization)
 
     if audio_duration_seconds <= 0:
         raise HTTPException(status_code=400, detail="audio_duration_seconds must be positive.")
@@ -1347,7 +1476,11 @@ async def upload_chunk(
 # =========================================================
 
 @app.get("/api/v1/upload/status/{upload_id}")
-async def upload_status(upload_id: str, google_token: str):
+async def upload_status(
+    upload_id: str,
+    google_token: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
+):
     """
     Return the current status of a chunked upload session.
 
@@ -1356,7 +1489,7 @@ async def upload_status(upload_id: str, google_token: str):
     ``POST /api/v1/upload/complete``.
     """
     try:
-        user_id = _resolve_user(google_token)
+        user_id = _resolve_user_from_auth(google_token=google_token, authorization=authorization)
         upload_directory = _upload_dir(user_id, upload_id)
         state = _read_upload_state(upload_directory)
 
@@ -1793,9 +1926,9 @@ async def visualize_audio(req: VisualizeRequest):
 # API: HISTORY + JOB DETAILS
 # =========================================================
 @app.get("/api/v1/history")
-async def history(google_token: str):
+async def history(google_token: Optional[str] = None, authorization: Optional[str] = Header(None)):
     """Returns { "jobs": [manifest, ...] } for the authenticated user."""
-    user_id = _resolve_user(google_token)
+    user_id = _resolve_user_from_auth(google_token=google_token, authorization=authorization)
     user_root = _safe_join(BASE_DIR, user_id)
 
     if not os.path.exists(user_root):
@@ -1816,11 +1949,26 @@ async def history(google_token: str):
     return JSONResponse(status_code=200, content={"jobs": jobs})
 
 @app.get("/api/v1/job/{folder_name}")
-async def job_details(folder_name: str, google_token: str):
+async def job_details(
+    folder_name: str,
+    google_token: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
+):
     """Returns manifest.json for one job."""
-    user_id = _resolve_user(google_token)
+    user_id = _resolve_user_from_auth(google_token=google_token, authorization=authorization)
     job_dir = _safe_join(BASE_DIR, user_id, _sanitize_name(folder_name, "folder_name"))
-    return JSONResponse(status_code=200, content=_read_manifest(job_dir))
+    manifest = _read_manifest(job_dir)
+    detected_source_language = ""
+    file_name = manifest.get("file_name")
+    if file_name:
+        detected_source_language = _detect_job_language(job_dir, file_name)
+    return JSONResponse(
+        status_code=200,
+        content={
+            **manifest,
+            "detected_source_language": detected_source_language,
+        },
+    )
 
 
 # =========================================================
@@ -1844,13 +1992,19 @@ _FILE_KEY_MAP: Dict[str, str] = {
 
 
 @app.get("/api/v1/download/{folder_name}/{file_type}")
-async def download(folder_name: str, file_type: FileType, google_token: str, lang_pair: Optional[str] = None):
+async def download(
+    folder_name: str,
+    file_type: FileType,
+    google_token: Optional[str] = None,
+    lang_pair: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
+):
     """Stream a single artifact file from the job folder.
     When *lang_pair* is supplied (e.g. ``indonesian_to_english``) the endpoint
     serves the corresponding translated file stored under
     ``manifest["translations"][lang_pair]`` instead of the primary artifact.
     """
-    user_id = _resolve_user(google_token)
+    user_id = _resolve_user_from_auth(google_token=google_token, authorization=authorization)
     job_dir = _safe_join(BASE_DIR, user_id, _sanitize_name(folder_name, "folder_name"))
     manifest = _read_manifest(job_dir)
 
