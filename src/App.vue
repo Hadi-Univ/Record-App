@@ -38,7 +38,7 @@
 
         <!-- Mobile user menu trigger -->
         <button
-          class="md:hidden px-3 py-2 rounded-lg hover:bg-slate-100 transition text-sm font-semibold text-slate-700 flex items-center gap-1.5 max-w-[70vw]"
+          class="motion-interactive md:hidden px-3 py-2 rounded-lg hover:bg-slate-100 transition text-sm font-semibold text-slate-700 flex items-center gap-1.5 max-w-[70vw]"
           @click="mobileMenuOpen = !mobileMenuOpen"
           :aria-label="`${t('settings.account')} ${t('nav.toggleMenu').toLowerCase()}`"
         >
@@ -61,7 +61,7 @@
           v-for="link in navLinks"
           :key="link.to"
           :to="link.to"
-          class="flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition"
+          class="motion-interactive flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition"
           active-class="bg-indigo-50 text-indigo-700"
           @click="mobileMenuOpen = false"
         >
@@ -97,7 +97,7 @@
           v-for="link in navLinks"
           :key="link.to"
           :to="link.to"
-          class="flex-1 flex flex-col items-center gap-0.5 py-2 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition"
+          class="motion-interactive flex-1 flex flex-col items-center gap-0.5 py-2 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition"
           active-class="text-indigo-600"
           exact-active-class="text-indigo-600"
         >
@@ -113,19 +113,22 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/appStore'
 import { refreshAccessToken } from './services/authService'
 import NavIcon from './components/NavIcon.vue'
 import ErrorBoundary from './components/ErrorBoundary.vue'
 import { useI18n } from './i18n/index.js'
+import { useScrollReveal } from './composables/useScrollReveal'
 
 const store = useAppStore()
 const router = useRouter()
+const route = useRoute()
 const mobileMenuOpen = ref(false)
 const transitionName = ref('slide-left')
 const { t } = useI18n()
+const { observeReveals } = useScrollReveal()
 
 router.beforeEach((to, from) => {
   const toDepth = to.meta.depth ?? 1
@@ -151,6 +154,12 @@ onMounted(async () => {
       // server action that requires a valid token.
     }
   }
+
+  await observeReveals(document)
+})
+
+watch(() => route.fullPath, () => {
+  observeReveals(document)
 })
 
 const navLinks = computed(() => [

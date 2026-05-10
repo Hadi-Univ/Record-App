@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6 pb-4">
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <div data-reveal class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
       <div class="flex items-center justify-between gap-3">
         <div>
           <h1 class="text-xl font-extrabold text-slate-900">{{ t('history.title') }}</h1>
@@ -10,14 +10,14 @@
           <button
             v-if="jobs.length"
             @click="toggleSelectMode"
-            class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-sm transition"
+            class="motion-interactive flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-sm transition"
           >
             {{ selectMode ? t('history.cancel') : t('history.select') }}
           </button>
           <button
             @click="loadHistory"
             :disabled="loading"
-            class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-sm transition disabled:opacity-50"
+            class="motion-interactive flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-sm transition disabled:opacity-50"
           >
             {{ loading ? t('history.loading') : t('history.refresh') }}
           </button>
@@ -38,6 +38,7 @@
     <!-- Delete selection toolbar -->
     <div
       v-if="selectMode && jobs.length"
+      data-reveal
       class="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-3 flex items-center gap-3 flex-wrap"
     >
       <label class="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer select-none">
@@ -55,7 +56,7 @@
       <button
         @click="confirmDelete"
         :disabled="selectedCount === 0 || deleting"
-        class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-xl text-sm transition"
+        class="motion-interactive flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-xl text-sm transition"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -76,13 +77,13 @@
         <div class="flex gap-3">
           <button
             @click="showDeleteConfirm = false"
-            class="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition"
+          class="motion-interactive flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition"
           >
             {{ t('history.cancel') }}
           </button>
           <button
             @click="executeDelete"
-            class="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition"
+            class="motion-interactive flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition"
           >
             {{ t('history.delete') }}
           </button>
@@ -110,7 +111,7 @@
 
     <div
       v-else-if="!loading && !filteredJobs.length && !error"
-      class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center"
+        class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center"
     >
       <h3 class="text-base font-bold text-slate-700">{{ searchQuery ? t('history.noMatchingJobs') : t('history.noJobsYet') }}</h3>
       <p class="text-sm text-slate-400 mt-1">
@@ -119,7 +120,7 @@
       <router-link
         v-if="!searchQuery"
         to="/"
-        class="inline-block mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition"
+        class="motion-interactive inline-block mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition"
       >
         {{ t('history.goToPipeline') }}
       </router-link>
@@ -129,6 +130,7 @@
       <div
         v-for="job in filteredJobs"
         :key="job.folder_name"
+        data-reveal
         class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
         :class="{ 'ring-2 ring-indigo-400': selectMode && selected[job.folder_name] }"
       >
@@ -136,7 +138,7 @@
           @click="selectMode ? toggleSelect(job.folder_name) : openJobDetail(job.folder_name)"
           type="button"
           :aria-label="`${selectMode ? 'Select' : 'Open'} job ${job.folder_name}`"
-          class="w-full flex items-start justify-between p-5 text-left hover:bg-slate-50 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-inset"
+          class="motion-interactive w-full flex items-start justify-between p-5 text-left hover:bg-slate-50 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-inset"
         >
           <!-- Checkbox in select mode -->
           <div v-if="selectMode" class="flex-shrink-0 flex items-center mr-3 mt-0.5">
@@ -163,7 +165,7 @@
               v-if="isPending(job)"
               @click.stop="reRunJob(job)"
               :disabled="reRunning[job.folder_name]"
-              class="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs font-semibold px-2.5 py-1 rounded-lg transition"
+                class="motion-interactive bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs font-semibold px-2.5 py-1 rounded-lg transition"
             >
             {{ reRunning[job.folder_name] ? t('history.rerunning') : t('history.rerun') }}
             </button>

@@ -1,13 +1,13 @@
 <template>
   <div class="max-w-2xl mx-auto space-y-6 pb-4">
     <!-- Header -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <div data-reveal class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
       <h1 class="text-xl font-extrabold text-slate-900">{{ t('settings.title') }}</h1>
       <p class="text-sm text-slate-500 mt-1">{{ t('settings.subtitle') }}</p>
     </div>
 
     <!-- Language Settings -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+    <div data-reveal data-reveal-delay="40" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
       <h2 class="text-base font-bold text-slate-900">{{ t('settings.language') }}</h2>
       <div class="space-y-1">
         <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">
@@ -30,7 +30,7 @@
     </div>
 
     <!-- LLM Provider Settings -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5">
+    <div data-reveal data-reveal-delay="80" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5">
       <h2 class="text-base font-bold text-slate-900">{{ t('settings.llmProvider') }}</h2>
 
       <div class="space-y-1">
@@ -77,7 +77,7 @@
           <button
             type="button"
             @click="showApiKey = !showApiKey"
-            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition text-xs font-semibold"
+            class="motion-interactive absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition text-xs font-semibold"
           >
             {{ showApiKey ? t('settings.hide') : t('settings.show') }}
           </button>
@@ -88,6 +88,8 @@
     <!-- Backend Connection -->
     <div
       v-if="store.state.authMethod === 'api'"
+      data-reveal
+      data-reveal-delay="120"
       class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5"
     >
       <h2 class="text-base font-bold text-slate-900">{{ t('settings.backendConnection') }}</h2>
@@ -108,7 +110,7 @@
       <button
         @click="testConnection"
         :disabled="testing"
-        class="w-full md:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2.5 rounded-xl text-sm transition disabled:opacity-50 flex items-center gap-2"
+        class="motion-interactive w-full md:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2.5 rounded-xl text-sm transition disabled:opacity-50 flex items-center gap-2"
       >
         <svg v-if="testing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -137,6 +139,8 @@
     <!-- User Info -->
     <div
       v-if="store.state.user"
+      data-reveal
+      data-reveal-delay="160"
       class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4"
     >
       <h2 class="text-base font-bold text-slate-900 mb-3">{{ t('settings.account') }}</h2>
@@ -162,7 +166,7 @@
         @click="handleLogout"
         :aria-label="t('nav.signOut')"
         :title="t('nav.signOut')"
-        class="w-full md:w-auto bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-4 py-2.5 rounded-xl text-sm transition"
+        class="motion-interactive w-full md:w-auto bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-4 py-2.5 rounded-xl text-sm transition"
       >
         {{ t('nav.signOut') }}
       </button>
@@ -171,14 +175,14 @@
         href="https://github.com/MMOSHII/Record-Note-API"
         target="_blank"
         rel="noopener noreferrer"
-        class="w-full md:w-auto inline-flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2.5 rounded-xl text-sm transition"
+        class="motion-interactive w-full md:w-auto inline-flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2.5 rounded-xl text-sm transition"
       >
         {{ t('settings.apiBackendRepository') }}
       </a>
     </div>
 
     <!-- Creators -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+    <div data-reveal data-reveal-delay="200" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
       <h2 class="text-base font-bold text-slate-900">{{ t('settings.creatorsTitle') }}</h2>
       <p class="text-sm text-slate-500">{{ t('settings.creatorsSubtitle') }}</p>
 
@@ -198,7 +202,7 @@
         <button
           type="button"
           @click="fetchContributors"
-          class="shrink-0 bg-white hover:bg-red-100 border border-red-200 text-red-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+          class="motion-interactive shrink-0 bg-white hover:bg-red-100 border border-red-200 text-red-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition"
         >
           {{ t('settings.retry') }}
         </button>

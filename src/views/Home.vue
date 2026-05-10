@@ -2,7 +2,7 @@
   <div class="space-y-6 pb-6">
 
     <!-- ─── Greeting Hero ─── -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <div data-reveal class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <p class="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1">{{ timeOfDay }}</p>
@@ -13,7 +13,7 @@
         </div>
         <router-link
           to="/pipeline"
-          class="self-start md:self-auto inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-sm text-sm"
+          class="motion-interactive self-start md:self-auto inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-sm text-sm"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
@@ -43,6 +43,7 @@
     <!-- ─── Pipeline In Progress Banner ─── -->
     <div
       v-if="showPipelineBanner"
+      data-reveal
       class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center justify-between gap-3"
     >
       <div class="flex items-center gap-3">
@@ -57,14 +58,14 @@
       </div>
       <router-link
         to="/pipeline"
-        class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-white border border-indigo-200 px-3 py-1.5 rounded-lg transition"
+        class="motion-interactive text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-white border border-indigo-200 px-3 py-1.5 rounded-lg transition"
       >
         {{ t('home.viewPipeline') }}
       </router-link>
     </div>
 
     <!-- ─── Recent Jobs ─── -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div data-reveal data-reveal-delay="60" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
@@ -76,7 +77,7 @@
         </div>
         <router-link
           to="/history"
-          class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
+          class="motion-interactive text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
         >
           View all →
         </router-link>
@@ -115,7 +116,7 @@
         <p class="text-xs text-slate-400 mb-4">{{ t('home.startFirstJob') }}</p>
         <router-link
           to="/pipeline"
-          class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition"
+          class="motion-interactive inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition"
         >
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
@@ -133,7 +134,7 @@
           type="button"
           @click="openJob(job.folder_name)"
           :aria-label="`Open job ${job.folder_name}`"
-          class="w-full text-left flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-inset"
+          class="motion-interactive w-full text-left flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-inset"
         >
           <div class="flex items-center gap-3 min-w-0">
             <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold flex-shrink-0" :class="statusClass(job.status)">
@@ -152,10 +153,10 @@
     </div>
 
     <!-- ─── Quick Actions ─── -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div data-reveal data-reveal-delay="120" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <router-link
         to="/pipeline"
-        class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex items-center gap-4 hover:border-indigo-300 hover:shadow transition group"
+        class="motion-interactive bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex items-center gap-4 hover:border-indigo-300 hover:shadow transition group"
       >
         <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-200 transition">
           <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,7 +172,7 @@
 
       <router-link
         to="/history"
-        class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex items-center gap-4 hover:border-indigo-300 hover:shadow transition group"
+        class="motion-interactive bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex items-center gap-4 hover:border-indigo-300 hover:shadow transition group"
       >
         <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 group-hover:bg-slate-200 transition">
           <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

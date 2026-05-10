@@ -1,6 +1,6 @@
 <template>
   <div class="flex items-center justify-center min-h-[80vh] px-4">
-    <div class="w-full max-w-md bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+    <div data-reveal class="w-full max-w-md bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
       <!-- Header -->
       <div class="text-center mb-6">
         <div class="flex justify-center mb-3">
@@ -30,7 +30,7 @@
         <button
           type="submit"
           :disabled="loading"
-          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+          class="motion-interactive w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition text-sm disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>

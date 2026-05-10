@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6 pb-4">
     <!-- Header -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <div data-reveal class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 class="text-xl font-extrabold text-slate-900">{{ t('pipeline.title') }}</h1>
@@ -51,6 +51,7 @@
     <!-- Error Banner -->
     <div
       v-if="pipeline.lastError"
+      data-reveal
       class="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3"
     >
       <span class="text-red-500 flex-shrink-0 mt-0.5">
@@ -64,7 +65,7 @@
       </div>
       <button
         @click="pipeline.lastError = ''"
-        class="text-red-400 hover:text-red-600 transition text-lg leading-none"
+        class="motion-interactive text-red-400 hover:text-red-600 transition text-lg leading-none"
         aria-label="Dismiss error"
       >×</button>
     </div>
@@ -72,6 +73,8 @@
     <!-- Pipeline Insights Card (shown once pipeline has progressed past step 1) -->
     <div
       v-if="pipeline.currentStep > 1 || pipeline.status === 'done'"
+      data-reveal
+      data-reveal-delay="60"
       class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6"
     >
       <h2 class="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
@@ -174,6 +177,8 @@
     <!-- Upload / Record Section (Step 1) -->
     <div
       v-if="pipeline.currentStep === 1 || !pipeline.folderName"
+      data-reveal
+      data-reveal-delay="120"
       class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6"
     >
       <h2 class="text-base font-bold text-slate-900 mb-4">{{ t('pipeline.provideAudio') }}</h2>
@@ -182,7 +187,7 @@
       <div class="flex rounded-xl overflow-hidden border border-slate-200 mb-5 text-sm font-semibold">
         <button
           @click="switchMode('upload')"
-          class="flex-1 py-2 flex items-center justify-center gap-1.5 transition"
+          class="motion-interactive flex-1 py-2 flex items-center justify-center gap-1.5 transition"
           :class="inputMode === 'upload'
             ? 'bg-indigo-600 text-white'
             : 'bg-white text-slate-500 hover:bg-slate-50'"
@@ -194,7 +199,7 @@
         </button>
         <button
           @click="switchMode('record')"
-          class="flex-1 py-2 flex items-center justify-center gap-1.5 transition"
+          class="motion-interactive flex-1 py-2 flex items-center justify-center gap-1.5 transition"
           :class="inputMode === 'record'
             ? 'bg-indigo-600 text-white'
             : 'bg-white text-slate-500 hover:bg-slate-50'"
@@ -245,7 +250,7 @@
             </div>
             <button
               @click.stop="clearFile"
-              class="ml-2 text-slate-400 hover:text-red-500 transition text-xl leading-none"
+              class="motion-interactive ml-2 text-slate-400 hover:text-red-500 transition text-xl leading-none"
               aria-label="Remove file"
             >×</button>
           </div>
@@ -263,7 +268,7 @@
         <div v-if="!isRecording && !audioBlob" class="flex flex-col items-center gap-3 py-6">
           <button
             @click="startRecording"
-            class="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 transition flex items-center justify-center shadow-lg"
+            class="motion-interactive w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 transition flex items-center justify-center shadow-lg"
             aria-label="Start recording"
           >
             <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
