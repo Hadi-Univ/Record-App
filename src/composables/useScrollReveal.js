@@ -1,30 +1,30 @@
-import { nextTick, onBeforeUnmount } from 'vue'
+import { nextTick } from 'vue'
 
 const REVEAL_SELECTOR = '[data-reveal]'
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
+const MAX_REVEAL_DELAY_MS = 500
+let sharedObserver = null
 
 export function useScrollReveal() {
-  let observer = null
-
   const markVisible = (element) => {
     element.classList.add('is-visible')
   }
 
   const ensureObserver = () => {
-    if (observer || typeof window === 'undefined' || !('IntersectionObserver' in window)) return observer
+    if (sharedObserver || typeof window === 'undefined' || !('IntersectionObserver' in window)) return sharedObserver
 
-    observer = new IntersectionObserver((entries) => {
+    sharedObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return
         markVisible(entry.target)
-        observer?.unobserve(entry.target)
+        sharedObserver?.unobserve(entry.target)
       })
     }, {
       threshold: 0.12,
       rootMargin: '0px 0px -8% 0px'
     })
 
-    return observer
+    return sharedObserver
   }
 
   const observeReveals = async (root = document) => {
@@ -53,7 +53,7 @@ export function useScrollReveal() {
 
       const delay = Number(element.dataset.revealDelay || 0)
       if (Number.isFinite(delay) && delay > 0) {
-        element.style.setProperty('--reveal-delay', `${Math.min(delay, 500)}ms`)
+        element.style.setProperty('--reveal-delay', `${Math.min(delay, MAX_REVEAL_DELAY_MS)}ms`)
       } else {
         element.style.removeProperty('--reveal-delay')
       }
@@ -63,13 +63,9 @@ export function useScrollReveal() {
   }
 
   const disconnectReveals = () => {
-    observer?.disconnect()
-    observer = null
+    sharedObserver?.disconnect()
+    sharedObserver = null
   }
-
-  onBeforeUnmount(() => {
-    disconnectReveals()
-  })
 
   return {
     observeReveals,

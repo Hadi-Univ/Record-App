@@ -111,7 +111,7 @@
 
     <div
       v-else-if="!loading && !filteredJobs.length && !error"
-        class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center"
+      class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center"
     >
       <h3 class="text-base font-bold text-slate-700">{{ searchQuery ? t('history.noMatchingJobs') : t('history.noJobsYet') }}</h3>
       <p class="text-sm text-slate-400 mt-1">

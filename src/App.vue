@@ -113,7 +113,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/appStore'
 import { refreshAccessToken } from './services/authService'
@@ -128,7 +128,7 @@ const route = useRoute()
 const mobileMenuOpen = ref(false)
 const transitionName = ref('slide-left')
 const { t } = useI18n()
-const { observeReveals } = useScrollReveal()
+const { observeReveals, disconnectReveals } = useScrollReveal()
 
 router.beforeEach((to, from) => {
   const toDepth = to.meta.depth ?? 1
@@ -155,11 +155,17 @@ onMounted(async () => {
     }
   }
 
-  await observeReveals(document)
+  await router.isReady()
+  await nextTick()
+  observeReveals(document)
 })
 
 watch(() => route.fullPath, () => {
   observeReveals(document)
+})
+
+onBeforeUnmount(() => {
+  disconnectReveals()
 })
 
 const navLinks = computed(() => [
