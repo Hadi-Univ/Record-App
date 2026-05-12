@@ -32,6 +32,16 @@
         <span class="text-sm font-semibold text-indigo-700">{{ pipeline.currentSubStep }}</span>
       </div>
 
+      <div
+        v-if="uploadProcessingNotice"
+        class="mt-4 flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5"
+      >
+        <svg class="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span class="text-sm font-semibold text-emerald-700">{{ uploadProcessingNotice }}</span>
+      </div>
+
       <!-- Overall Completion Progress Bar (shown once pipeline has started) -->
       <div v-if="pipeline.currentStep > 1 || pipeline.status === 'done'" class="mt-5">
         <div class="flex items-center justify-between text-xs font-semibold text-slate-600 mb-1.5">
@@ -187,6 +197,7 @@
       <div class="flex rounded-xl overflow-hidden border border-slate-200 mb-5 text-sm font-semibold">
         <button
           @click="switchMode('upload')"
+          :disabled="isPipelineLocked"
           class="motion-interactive flex-1 py-2 flex items-center justify-center gap-1.5 transition"
           :class="inputMode === 'upload'
             ? 'bg-indigo-600 text-white'
@@ -199,6 +210,7 @@
         </button>
         <button
           @click="switchMode('record')"
+          :disabled="isPipelineLocked"
           class="motion-interactive flex-1 py-2 flex items-center justify-center gap-1.5 transition"
           :class="inputMode === 'record'
             ? 'bg-indigo-600 text-white'
@@ -218,16 +230,17 @@
           :class="dragOver
             ? 'border-indigo-400 bg-indigo-50'
             : 'border-slate-300 hover:border-indigo-300 hover:bg-slate-50'"
-          @dragover.prevent="dragOver = true"
+          @dragover.prevent="!isPipelineLocked && (dragOver = true)"
           @dragleave="dragOver = false"
           @drop.prevent="onDrop"
-          @click="fileInputRef.click()"
+          @click="!isPipelineLocked && fileInputRef.click()"
         >
           <input
             ref="fileInputRef"
             type="file"
             accept="audio/*,video/mp4,video/mpeg,video/webm"
             class="hidden"
+            :disabled="isPipelineLocked"
             @change="onFileChange"
           />
           <div v-if="!selectedFile">
@@ -250,6 +263,7 @@
             </div>
             <button
               @click.stop="clearFile"
+              :disabled="isPipelineLocked"
               class="motion-interactive ml-2 text-slate-400 hover:text-red-500 transition text-xl leading-none"
               aria-label="Remove file"
             >×</button>
@@ -268,6 +282,7 @@
         <div v-if="!isRecording && !audioBlob" class="flex flex-col items-center gap-3 py-6">
           <button
             @click="startRecording"
+            :disabled="isPipelineLocked"
             class="motion-interactive w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 transition flex items-center justify-center shadow-lg"
             aria-label="Start recording"
           >
@@ -293,6 +308,7 @@
             </div>
             <button
               @click="stopRecording"
+              :disabled="isPipelineLocked"
               class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold transition flex items-center gap-2"
               aria-label="Stop recording"
             >
@@ -318,6 +334,7 @@
           <div class="flex gap-2">
             <button
               @click="discardRecording"
+              :disabled="isPipelineLocked"
               class="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition"
             >
               Discard
@@ -328,7 +345,7 @@
 
       <button
         @click="startPipeline"
-        :disabled="!canStartPipeline || pipeline.status === 'running'"
+        :disabled="!canStartPipeline || isPipelineLocked"
         class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2"
       >
         <span v-if="pipeline.status === 'running'" class="flex items-center gap-2">
@@ -374,6 +391,7 @@
         </div>
         <button
           @click="store.clearPipeline()"
+          :disabled="isPipelineLocked"
           class="text-xs text-red-500 hover:text-red-700 font-semibold underline transition"
         >
           Start Over
@@ -392,7 +410,7 @@
         </div>
         <button
           @click="runSummarize"
-          :disabled="pipeline.status === 'running'"
+          :disabled="isPipelineLocked"
           class="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2"
         >
           <span v-if="pipeline.status === 'running'" class="flex items-center gap-2">
@@ -423,7 +441,7 @@
         </div>
         <button
           @click="runVisualize"
-          :disabled="pipeline.status === 'running'"
+          :disabled="isPipelineLocked"
           class="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2"
         >
           <span v-if="pipeline.status === 'running'" class="flex items-center gap-2">
@@ -455,6 +473,7 @@
         </div>
         <button
           @click="store.clearPipeline()"
+          :disabled="isPipelineLocked"
           class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold underline transition"
         >
           New Job
@@ -469,12 +488,12 @@
             Transcription
           </h3>
           <div class="flex items-center gap-3">
-            <button
-              @click="rerunTranscribe"
-              :disabled="pipeline.status === 'running'"
-              class="text-xs text-slate-500 hover:text-indigo-600 disabled:opacity-40 font-semibold transition flex items-center gap-1"
-              title="Re-run transcription"
-            >
+              <button
+                @click="rerunTranscribe"
+                :disabled="isPipelineLocked"
+                class="text-xs text-slate-500 hover:text-indigo-600 disabled:opacity-40 font-semibold transition flex items-center gap-1"
+                title="Re-run transcription"
+              >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               Re-run
             </button>
@@ -502,12 +521,12 @@
             Summary
           </h3>
           <div v-if="pipeline.folderName" class="flex items-center gap-3">
-            <button
-              @click="rerunSummarize"
-              :disabled="pipeline.status === 'running'"
-              class="text-xs text-slate-500 hover:text-indigo-600 disabled:opacity-40 font-semibold transition flex items-center gap-1"
-              title="Re-run summarization"
-            >
+              <button
+                @click="rerunSummarize"
+                :disabled="isPipelineLocked"
+                class="text-xs text-slate-500 hover:text-indigo-600 disabled:opacity-40 font-semibold transition flex items-center gap-1"
+                title="Re-run summarization"
+              >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               Re-run
             </button>
@@ -542,12 +561,12 @@
             Visualization
           </h3>
           <div v-if="pipeline.folderName" class="flex items-center gap-3">
-            <button
-              @click="rerunVisualize"
-              :disabled="pipeline.status === 'running'"
-              class="text-xs text-slate-500 hover:text-indigo-600 disabled:opacity-40 font-semibold transition flex items-center gap-1"
-              title="Re-run visualization"
-            >
+              <button
+                @click="rerunVisualize"
+                :disabled="isPipelineLocked"
+                class="text-xs text-slate-500 hover:text-indigo-600 disabled:opacity-40 font-semibold transition flex items-center gap-1"
+                title="Re-run visualization"
+              >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               Re-run
             </button>
@@ -611,6 +630,7 @@ const { t } = useI18n()
 const fileInputRef = ref(null)
 const selectedFile = ref(null)
 const dragOver = ref(false)
+const uploadProcessingNotice = ref('')
 
 // Chunked upload state
 const chunkUploadProgress = ref(0)
@@ -707,8 +727,18 @@ const formatTimestamp = (ts) => {
 const canStartPipeline = computed(() =>
   inputMode.value === 'upload' ? !!selectedFile.value : !!audioBlob.value
 )
+const isPipelineLocked = computed(() => pipeline.isProcessing)
+
+const beginProcessingLock = () => {
+  pipeline.isProcessing = true
+}
+
+const releaseProcessingLock = () => {
+  pipeline.isProcessing = false
+}
 
 const switchMode = (mode) => {
+  if (isPipelineLocked.value) return
   inputMode.value = mode
   if (mode === 'upload') {
     discardRecording()
@@ -728,16 +758,19 @@ const statusBadgeClass = computed(() => {
 const statusBadgeLabel = computed(() => pipeline.status)
 
 const onFileChange = (e) => {
+  if (isPipelineLocked.value) return
   selectedFile.value = e.target.files[0] || null
 }
 
 const onDrop = (e) => {
+  if (isPipelineLocked.value) return
   dragOver.value = false
   const file = e.dataTransfer.files[0]
   if (file) selectedFile.value = file
 }
 
 const clearFile = () => {
+  if (isPipelineLocked.value) return
   selectedFile.value = null
   if (fileInputRef.value) fileInputRef.value.value = ''
 }
@@ -755,6 +788,7 @@ const formatRecordingTime = (seconds) => {
 }
 
 const startRecording = async () => {
+  if (isPipelineLocked.value) return
   recordError.value = ''
   audioChunks = []
   try {
@@ -792,7 +826,8 @@ const startRecording = async () => {
   recordingTimer = setInterval(() => { recordingSeconds.value++ }, 1000)
 }
 
-const stopRecording = () => {
+const stopRecording = (force = false) => {
+  if (isPipelineLocked.value && !force) return
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop()
   }
@@ -801,8 +836,9 @@ const stopRecording = () => {
   isRecording.value = false
 }
 
-const discardRecording = () => {
-  stopRecording()
+const discardRecording = (force = false) => {
+  if (isPipelineLocked.value && !force) return
+  stopRecording(force)
   if (audioBlobUrl.value) {
     URL.revokeObjectURL(audioBlobUrl.value)
     audioBlobUrl.value = null
@@ -820,7 +856,7 @@ const releaseMicStream = () => {
 }
 
 onUnmounted(() => {
-  discardRecording()
+  discardRecording(true)
   releaseMicStream()
   clearInterval(timeTickInterval)
 })
@@ -872,6 +908,8 @@ const recoverPipelineAfterRefresh = async () => {
 
   if (wasRunningBeforeReload && !pipeline.folderName) {
     pipeline.status = 'error'
+    releaseProcessingLock()
+    uploadProcessingNotice.value = ''
     pipeline.lastError = 'Pipeline was interrupted before job info was saved. Please start again.'
     return
   }
@@ -894,11 +932,14 @@ const recoverPipelineAfterRefresh = async () => {
   } catch (err) {
     if (!wasRunningBeforeReload) return
     pipeline.status = 'error'
+    releaseProcessingLock()
+    uploadProcessingNotice.value = ''
     pipeline.lastError = err.message || 'Failed to recover pipeline progress after refresh.'
   }
 }
 
 const startPipeline = async () => {
+  if (isPipelineLocked.value) return
   let fileToUpload = selectedFile.value
 
   if (inputMode.value === 'record') {
@@ -910,6 +951,8 @@ const startPipeline = async () => {
 
   if (!fileToUpload) return
 
+  beginProcessingLock()
+  uploadProcessingNotice.value = ''
   pipeline.status = 'running'
   pipeline.currentStep = 1
   pipeline.lastError = ''
@@ -923,6 +966,7 @@ const startPipeline = async () => {
     const transcribeResult = await uploadFileChunked(fileToUpload)
     pipeline.stageTimings.upload.end = Date.now()
     pipeline.currentSubStep = ''
+    uploadProcessingNotice.value = 'File uploaded successfully. Please wait a moment while the system processes your file.'
     pipeline.folderName = transcribeResult.folder_name || transcribeResult.folderName || ''
     pipeline.fileName =
       transcribeResult.file_name ||
@@ -936,6 +980,8 @@ const startPipeline = async () => {
     pipeline.status = 'idle'
   } catch (err) {
     pipeline.status = 'error'
+    releaseProcessingLock()
+    uploadProcessingNotice.value = ''
     pipeline.currentSubStep = ''
     pipeline.lastError = err.message
     chunkUploadStep.value = ''
@@ -1001,6 +1047,7 @@ const uploadFileChunked = async (file) => {
 const runSummarize = async () => {
   if (!pipeline.folderName) return
 
+  beginProcessingLock()
   pipeline.status = 'running'
   pipeline.lastError = ''
   pipeline.currentSubStep = 'Summarizing transcript…'
@@ -1019,6 +1066,8 @@ const runSummarize = async () => {
     pipeline.status = 'idle'
   } catch (err) {
     pipeline.status = 'error'
+    releaseProcessingLock()
+    uploadProcessingNotice.value = ''
     pipeline.currentSubStep = ''
     pipeline.lastError = err.message
     return
@@ -1031,6 +1080,7 @@ const runSummarize = async () => {
 const runVisualize = async () => {
   if (!pipeline.folderName) return
 
+  beginProcessingLock()
   pipeline.status = 'running'
   pipeline.lastError = ''
   pipeline.currentSubStep = 'Generating visualization…'
@@ -1047,17 +1097,24 @@ const runVisualize = async () => {
     }
     pipeline.currentStep = 4
     pipeline.status = 'done'
+    releaseProcessingLock()
+    uploadProcessingNotice.value = ''
     pipeline.completedAt = Date.now()
   } catch (err) {
     pipeline.status = 'error'
+    releaseProcessingLock()
+    uploadProcessingNotice.value = ''
     pipeline.currentSubStep = ''
     pipeline.lastError = err.message
   }
 }
 
 const rerunTranscribe = async () => {
+  if (isPipelineLocked.value) return
   if (!pipeline.folderName) return
 
+  beginProcessingLock()
+  uploadProcessingNotice.value = ''
   pipeline.status = 'running'
   pipeline.lastError = ''
   pipeline.currentSubStep = 'Re-transcribing audio…'
@@ -1079,6 +1136,8 @@ const rerunTranscribe = async () => {
     pipeline.status = 'idle'
   } catch (err) {
     pipeline.status = 'error'
+    releaseProcessingLock()
+    uploadProcessingNotice.value = ''
     pipeline.currentSubStep = ''
     pipeline.lastError = err.message
     return
@@ -1088,6 +1147,7 @@ const rerunTranscribe = async () => {
 }
 
 const rerunSummarize = async () => {
+  if (isPipelineLocked.value) return
   // Keep upload timing; fresh summarize and visualize timings will be recorded
   delete pipeline.stageTimings.summarize
   delete pipeline.stageTimings.visualize
@@ -1103,6 +1163,7 @@ const rerunSummarize = async () => {
 }
 
 const rerunVisualize = async () => {
+  if (isPipelineLocked.value) return
   // Keep upload + summarize timings; fresh visualize timing will be recorded
   delete pipeline.stageTimings.visualize
   pipeline.completedAt = null
@@ -1115,6 +1176,11 @@ const rerunVisualize = async () => {
 }
 
 onMounted(() => {
+  if (pipeline.status === 'running') {
+    beginProcessingLock()
+  } else if (pipeline.status === 'done' || pipeline.status === 'error') {
+    releaseProcessingLock()
+  }
   recoverPipelineAfterRefresh()
   timeTickInterval = setInterval(() => {
     if (pipeline.status === 'running') {

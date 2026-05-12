@@ -4,9 +4,7 @@
       <!-- Header -->
       <div class="text-center mb-6">
         <div class="flex justify-center mb-3">
-          <svg class="w-12 h-12 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-          </svg>
+          <img src="/logo.svg" alt="Record Note logo" class="w-12 h-12 object-contain" />
         </div>
         <h1 class="text-3xl font-extrabold text-slate-900">{{ t('login.appName') }}</h1>
         <p class="text-slate-500 text-sm mt-2">{{ t('login.subtitle') }}</p>
@@ -33,7 +31,7 @@
       </div>
       
       <!-- Email & Password tab -->
-      <div v-if="tab === 'basic'">
+      <div v-show="tab === 'basic'">
         <form @submit.prevent="handleBasicLogin" class="space-y-4">
           <div class="space-y-1">
             <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('login.email') }}</label>
@@ -97,7 +95,7 @@
         </div>
 
         <div>
-          <!-- <div v-if="isNative" class="flex justify-center">
+          <div v-if="isNative" class="flex justify-center">
             <button
               @click="handleNativeGoogleSignIn"
               :disabled="loading"
@@ -111,16 +109,16 @@
               </svg>
               {{ loading ? t('login.signingIn') : 'Sign in with Google' }}
             </button>
-          </div> -->
+          </div>
 
-          <div class="flex justify-center">
+          <div v-else class="flex justify-center">
             <div id="google-btn-container" class="w-full flex justify-center" />
           </div>
         </div>
       </div>
 
       <!-- API Token tab -->
-      <div v-if="tab === 'api'" class="space-y-4">
+      <div v-show="tab === 'api'" class="space-y-4">
         <div class="space-y-1">
           <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">
             Backend URL
@@ -195,7 +193,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/appStore'
 import {
@@ -297,28 +295,36 @@ const handleApiTokenLogin = async () => {
   }
 }
 
+const initGoogle = () => {
+  if (window.google?.accounts?.id && document.getElementById('google-btn-container')) {
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleCredentialResponse,
+      auto_select: false
+    })
+    window.google.accounts.id.renderButton(
+      document.getElementById('google-btn-container'),
+      { theme: 'outline', size: 'large', type: 'standard', shape: 'rectangular', width: 340 }
+    )
+  } else {
+    setTimeout(initGoogle, 300)
+  }
+}
+
+watch(tab, async (newTab) => {
+  if (newTab === 'basic') {
+    // Wait for Vue to finish putting the <div id="google-btn-container"> back into the DOM
+    await nextTick() 
+    initGoogle()
+  }
+})
+
 onMounted(() => {
   if (isNative) return  // native path — no GIS needed
 
   if (!GOOGLE_CLIENT_ID) {
     console.warn('[Auth] VITE_GOOGLE_CLIENT_ID is not set. Google Sign-In is unavailable.')
     return
-  }
-
-  const initGoogle = () => {
-    if (window.google?.accounts?.id && document.getElementById('google-btn-container')) {
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredentialResponse,
-        auto_select: false
-      })
-      window.google.accounts.id.renderButton(
-        document.getElementById('google-btn-container'),
-        { theme: 'outline', size: 'large', type: 'standard', shape: 'rectangular', width: 340 }
-      )
-    } else {
-      setTimeout(initGoogle, 300)
-    }
   }
 
   initGoogle()

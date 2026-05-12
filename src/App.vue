@@ -13,9 +13,7 @@
     >
       <div class="max-w-5xl mx-auto px-4 md:px-8 py-3 flex items-center justify-between">
         <router-link to="/" class="flex items-center gap-2">
-          <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-          </svg>
+          <img src="/logo.svg" alt="Record Note logo" class="w-6 h-6 object-contain" />
           <span class="text-xl font-extrabold text-slate-900">{{ t('nav.appName') }}</span>
         </router-link>
 
