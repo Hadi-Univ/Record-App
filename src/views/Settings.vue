@@ -201,7 +201,7 @@
         <span>{{ contributorsError }}</span>
         <button
           type="button"
-          @click="fetchContributors"
+          @click="fetchContributors({ force: true })"
           class="motion-interactive shrink-0 bg-white hover:bg-red-100 border border-red-200 text-red-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition"
         >
           {{ t('settings.retry') }}
@@ -355,6 +355,8 @@ const { t, locale, setLocale, availableLocales } = useI18n()
 const API_USER_ROLE = 'api user'
 const GITHUB_CONTRIBUTORS_URL = 'https://api.github.com/repos/Hadi-Univ/Record-App/contributors'
 const GITHUB_API_TIMEOUT_MS = 5000
+const CONTRIBUTORS_CACHE_KEY = 'record_app_contributors_cache_v1'
+const CONTRIBUTORS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 const showApiKey = ref(false)
 const testing = ref(false)
@@ -414,7 +416,62 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-const fetchContributors = async () => {
+const readContributorsCache = () => {
+  try {
+    const raw = localStorage.getItem(CONTRIBUTORS_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || !Array.isArray(parsed.data) || typeof parsed.fetchedAt !== 'number') {
+      return null
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+const writeContributorsCache = (data) => {
+  try {
+    localStorage.setItem(CONTRIBUTORS_CACHE_KEY, JSON.stringify({
+      fetchedAt: Date.now(),
+      data
+    }))
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+const normalizeContributors = (data) => {
+  const unknownContributor = t('settings.unknownContributor')
+  return Array.isArray(data)
+    ? data.map((contributor, index) => {
+      const name = contributor.login || unknownContributor
+      return {
+        id: contributor.id ?? `contributor-${index}`,
+        name,
+        avatarUrl: contributor.avatar_url || '',
+        profileUrl: contributor.html_url || '',
+        fallbackInitial: name.charAt(0).toUpperCase()
+      }
+    })
+    : []
+}
+
+const loadFreshContributorsCache = () => {
+  const cached = readContributorsCache()
+  if (!cached) return false
+  if (Date.now() - cached.fetchedAt > CONTRIBUTORS_CACHE_TTL_MS) return false
+  contributors.value = normalizeContributors(cached.data)
+  contributorsError.value = ''
+  return true
+}
+
+const fetchContributors = async ({ force = false } = {}) => {
+  if (!force && loadFreshContributorsCache()) {
+    contributorsLoading.value = false
+    return
+  }
+
   const signal = requestCanceller.nextSignal('contributors')
   contributorsLoading.value = true
   contributorsError.value = ''
@@ -426,21 +483,16 @@ const fetchContributors = async () => {
       retries: 1,
       signal
     })
-    const unknownContributor = t('settings.unknownContributor')
-    contributors.value = Array.isArray(data)
-      ? data.map((contributor, index) => {
-        const name = contributor.login || unknownContributor
-        return {
-          id: contributor.id ?? `contributor-${index}`,
-          name,
-          avatarUrl: contributor.avatar_url || '',
-          profileUrl: contributor.html_url || '',
-          fallbackInitial: name.charAt(0).toUpperCase()
-        }
-      })
-      : []
+    contributors.value = normalizeContributors(data)
+    writeContributorsCache(data)
   } catch (err) {
     if (signal.aborted) {
+      return
+    }
+    const cached = readContributorsCache()
+    if (cached?.data?.length) {
+      contributors.value = normalizeContributors(cached.data)
+      contributorsError.value = ''
       return
     }
     if (err?.name === 'TimeoutError' || err?.message?.toLowerCase?.().includes('timed out')) {

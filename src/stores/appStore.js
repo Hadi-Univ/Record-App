@@ -33,6 +33,7 @@ const state = reactive({
   pipeline: {
     currentStep: savedState.pipeline?.currentStep || 1,
     status: savedState.pipeline?.status || 'idle',
+    isProcessing: Boolean(savedState.pipeline?.isProcessing),
     folderName: savedState.pipeline?.folderName || '',
     fileName: savedState.pipeline?.fileName || '',
     results: savedState.pipeline?.results || {},
@@ -69,6 +70,7 @@ const logout = () => {
   state.pipeline = {
     currentStep: 1,
     status: 'idle',
+    isProcessing: false,
     folderName: '',
     fileName: '',
     results: {},
@@ -84,6 +86,7 @@ const clearPipeline = () => {
   state.pipeline = {
     currentStep: 1,
     status: 'idle',
+    isProcessing: false,
     folderName: '',
     fileName: '',
     results: {},

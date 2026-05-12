@@ -4,9 +4,7 @@
       <!-- Header -->
       <div class="text-center mb-6">
         <div class="flex justify-center mb-3">
-          <svg class="w-12 h-12 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-          </svg>
+          <img src="/logo.svg" alt="Record Note logo" class="w-12 h-12 object-contain" />
         </div>
         <h1 class="text-3xl font-extrabold text-slate-900">{{ t('login.appName') }}</h1>
         <p class="text-slate-500 text-sm mt-2">{{ t('login.subtitle') }}</p>
