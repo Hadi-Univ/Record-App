@@ -29,6 +29,7 @@ describe('appStore – initial state', () => {
     expect(state.settings.apiKey).toBe('')
     expect(state.pipeline.currentStep).toBe(1)
     expect(state.pipeline.status).toBe('idle')
+    expect(state.pipeline.isProcessing).toBe(false)
     expect(state.pipeline.folderName).toBe('')
     expect(state.pipeline.fileName).toBe('')
     expect(state.pipeline.results).toEqual({})
@@ -51,6 +52,7 @@ describe('appStore – initial state', () => {
       pipeline: {
         currentStep: 3,
         status: 'idle',
+        isProcessing: true,
         folderName: 'job_abc',
         fileName: 'audio.mp3',
         results: { transcription: 'Hello' },
@@ -67,6 +69,7 @@ describe('appStore – initial state', () => {
     expect(state.historyCache).toEqual([{ folder_name: 'job_1' }])
     expect(state.historyDetailCache.job_1.summary).toBe('cached summary')
     expect(state.pipeline.currentStep).toBe(3)
+    expect(state.pipeline.isProcessing).toBe(true)
     expect(state.pipeline.folderName).toBe('job_abc')
     expect(state.pipeline.results.transcription).toBe('Hello')
   })
@@ -77,6 +80,7 @@ describe('appStore – initial state', () => {
     }
     const { state } = await freshStore(saved)
     expect(state.pipeline.status).toBe('running')
+    expect(state.pipeline.isProcessing).toBe(false)
   })
 
   it('preserves non-running pipeline status on reload', async () => {
@@ -117,6 +121,7 @@ describe('appStore – logout()', () => {
     expect(state.historyDetailCache).toEqual({})
     expect(state.pipeline.currentStep).toBe(1)
     expect(state.pipeline.status).toBe('idle')
+    expect(state.pipeline.isProcessing).toBe(false)
     expect(state.pipeline.folderName).toBe('')
     expect(state.pipeline.fileName).toBe('')
     expect(state.pipeline.results).toEqual({})
@@ -131,6 +136,7 @@ describe('appStore – clearPipeline()', () => {
     state.user = { name: 'Carol', email: 'carol@example.com', picture: '' }
     state.pipeline.currentStep = 4
     state.pipeline.status = 'done'
+    state.pipeline.isProcessing = true
     state.pipeline.folderName = 'job_123'
     state.pipeline.results = { summary: 'text' }
 
@@ -140,6 +146,7 @@ describe('appStore – clearPipeline()', () => {
     expect(state.user).not.toBeNull()
     expect(state.pipeline.currentStep).toBe(1)
     expect(state.pipeline.status).toBe('idle')
+    expect(state.pipeline.isProcessing).toBe(false)
     expect(state.pipeline.folderName).toBe('')
     expect(state.pipeline.fileName).toBe('')
     expect(state.pipeline.results).toEqual({})
