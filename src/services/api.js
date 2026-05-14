@@ -213,7 +213,7 @@ export async function getHistory(options = {}) {
 /**
  * Build a download URL for an artifact.
  * GET /api/v1/download/{folder_name}/{file_type}
- * @param {string} fileType - one of: 'audio', 'summary_txt', 'summary_html', 'image', 'transcript_txt', 'transcript_json'
+ * @param {string} fileType - one of: 'audio', 'audio_denoised', 'summary_txt', 'summary_html', 'image', 'transcript_txt', 'transcript_json', 'flashcards_json', 'chatbot_json'
  * @param {string|null} [langPair] - optional translation key, e.g. 'indonesian_to_english'
  */
 export function getDownloadUrl(folderName, fileType, langPair = null) {

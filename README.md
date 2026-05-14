@@ -153,8 +153,11 @@ For remote environments:
 - Some backend-compatible requests also include `google_token` in body/query values.
 - Download URLs are generated via `/api/v1/download/{folder_name}/{file_type}` and support:
   - `audio`
+  - `audio_denoised`
   - `summary_txt`
   - `summary_html`
   - `image`
   - `transcript_txt`
   - `transcript_json`
+  - `flashcards_json`
+  - `chatbot_json`

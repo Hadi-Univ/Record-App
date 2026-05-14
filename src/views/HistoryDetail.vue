@@ -660,6 +660,7 @@ import { useRoute } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { getJob, getDownloadUrl, fetchDownloadText, fetchDownloadJson, summarizeJob, visualizeJob, translateJob, saveTranscript, generateFlashcards, sendChatMessage, GET_CACHE_TTL_MS } from '../services/api'
+import { normalizeFlashcardsPayload, normalizeChatHistoryPayload } from '../services/historyArtifacts'
 import { createRequestCanceller } from '../services/httpClient'
 import { useAppStore } from '../stores/appStore'
 import { useI18n } from '../i18n/index.js'
@@ -848,8 +849,9 @@ const runGenerateFlashcards = async () => {
   cardFlipped.value = false
   try {
     const result = await generateFlashcards(folderName.value, fileName.value, flashcardCount.value)
-    flashcards.value = result.flashcards || []
+    flashcards.value = normalizeFlashcardsPayload(result)
     if (!flashcards.value.length) flashcardsError.value = 'No flashcards were returned.'
+    saveCachedDetail()
   } catch (err) {
     flashcardsError.value = err.message
   } finally {
@@ -900,6 +902,7 @@ const sendChat = async () => {
     chatError.value = err.message
     chatMessages.value.pop()
   } finally {
+    saveCachedDetail()
     chatLoading.value = false
     await nextTick()
     if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
@@ -1185,7 +1188,13 @@ const resetDetailState = () => {
 
 const hasDetailContent = (payload) => {
   if (!payload || typeof payload !== 'object') return false
-  return Boolean(payload.summary || payload.transcript || (Array.isArray(payload.transcriptData) && payload.transcriptData.length))
+  return Boolean(
+    payload.summary ||
+    payload.transcript ||
+    (Array.isArray(payload.transcriptData) && payload.transcriptData.length) ||
+    (Array.isArray(payload.flashcards) && payload.flashcards.length) ||
+    (Array.isArray(payload.chatMessages) && payload.chatMessages.length)
+  )
 }
 
 const getCachedDetail = (folder) => {
@@ -1209,6 +1218,12 @@ const applyCachedDetail = (cached) => {
   } else {
     resetDashboard()
   }
+  flashcards.value = normalizeFlashcardsPayload(cached.flashcards)
+  currentCardIndex.value = 0
+  cardFlipped.value = false
+  flashcardsError.value = ''
+  chatMessages.value = normalizeChatHistoryPayload(cached.chatMessages)
+  chatError.value = ''
   return true
 }
 
@@ -1218,6 +1233,8 @@ const saveCachedDetail = () => {
     summary: detail.value.summary || '',
     transcript: detail.value.transcript || '',
     transcriptData: transcriptData.value.map(({ _id, ...rest }) => ({ ...rest })),
+    flashcards: flashcards.value.map(card => ({ ...card })),
+    chatMessages: chatMessages.value.map(message => ({ role: message.role, content: message.content })),
     updatedAt: new Date().toISOString()
   }
   if (!hasDetailContent(payload)) return
@@ -1242,7 +1259,7 @@ const loadDetail = async () => {
     manifest.value = jobDetail
     const files = jobDetail?.files || {}
 
-    const [summaryResult, transcriptJsonResult, transcriptTextResult] = await Promise.allSettled([
+    const [summaryResult, transcriptJsonResult, transcriptTextResult, flashcardsResult, chatbotHistoryResult] = await Promise.allSettled([
       files.summary_txt
         ? fetchDownloadText(folderName.value, 'summary_txt', {
             signal,
@@ -1259,6 +1276,18 @@ const loadDetail = async () => {
         ? fetchDownloadText(folderName.value, 'transcript_txt', {
             signal,
             errorLabel: 'Failed to load transcript'
+          })
+        : Promise.resolve(null),
+      files.flashcards_json
+        ? fetchDownloadJson(folderName.value, 'flashcards_json', {
+            signal,
+            errorLabel: 'Failed to load flashcards history'
+          })
+        : Promise.resolve(null),
+      files.chatbot_json
+        ? fetchDownloadJson(folderName.value, 'chatbot_json', {
+            signal,
+            errorLabel: 'Failed to load chatbot history'
           })
         : Promise.resolve(null)
     ])
@@ -1279,6 +1308,22 @@ const loadDetail = async () => {
       detail.value.transcript = transcriptTextResult.value
     } else if (!cached?.transcript) {
       detail.value.transcript = ''
+    }
+
+    if (flashcardsResult.status === 'fulfilled') {
+      flashcards.value = normalizeFlashcardsPayload(flashcardsResult.value)
+      currentCardIndex.value = 0
+      cardFlipped.value = false
+    } else if (!Array.isArray(cached?.flashcards) || !cached.flashcards.length) {
+      flashcards.value = []
+      currentCardIndex.value = 0
+      cardFlipped.value = false
+    }
+
+    if (chatbotHistoryResult.status === 'fulfilled') {
+      chatMessages.value = normalizeChatHistoryPayload(chatbotHistoryResult.value)
+    } else if (!Array.isArray(cached?.chatMessages) || !cached.chatMessages.length) {
+      chatMessages.value = []
     }
 
     if (transcriptData.value.length) initDashboard()
