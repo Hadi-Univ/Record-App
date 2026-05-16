@@ -10,7 +10,7 @@ export default defineComponent({
   emits: ['select', 'delete'],
   setup(props, { emit }) {
     return () =>
-      h('div', { class: 'bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-2' }, [
+      h('div', { class: 'bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-2 h-full min-h-0 overflow-y-auto' }, [
         h('div', { class: 'text-xs font-bold text-slate-500 uppercase tracking-wide' }, 'Conversations'),
         props.loading
           ? h('p', { class: 'text-xs text-slate-400' }, 'Loading sessions…')
@@ -52,4 +52,3 @@ export default defineComponent({
       ])
   }
 })
-

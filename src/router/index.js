@@ -29,6 +29,11 @@ const routes = [
     meta: { title: 'Shared Detail', depth: 0 }
   },
   {
+    path: '/terms-and-conditions',
+    component: () => import('../views/TermsConditions.vue'),
+    meta: { title: 'Terms & Conditions', depth: 0 }
+  },
+  {
     path: '/',
     component: () => import('../views/Home.vue'),
     meta: { requiresAuth: true, title: 'Home', depth: 1 }

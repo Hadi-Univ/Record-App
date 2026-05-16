@@ -434,7 +434,7 @@
         <!-- ── Tab Panel: AI Tools ── -->
         <div v-if="activeTab === 'ai'" class="divide-y divide-slate-100">
           <!-- Chatbot -->
-          <div class="flex flex-col min-h-[500px] max-h-[72vh]">
+          <div class="flex flex-col min-h-[420px] max-h-[78vh] overflow-hidden">
             <div class="px-5 py-3 flex items-center justify-between gap-3 bg-teal-50/50 border-b border-slate-100">
               <div class="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0">
                 <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -450,7 +450,7 @@
               </button>
             </div>
             <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[240px,1fr]">
-              <div class="border-b md:border-b-0 md:border-r border-slate-100 p-3">
+              <div class="border-b md:border-b-0 md:border-r border-slate-100 p-3 min-h-[140px] md:min-h-0">
                 <ChatHistoryPanel
                   :sessions="chatSessions"
                   :active-session-id="activeChatSessionId"
@@ -459,20 +459,20 @@
                   @delete="deleteChatSession"
                 />
               </div>
-              <div class="min-h-0">
-                <div ref="chatScrollRef">
+              <div class="min-h-0 flex flex-col bg-white">
+                <div ref="chatScrollRef" class="flex-1 min-h-0 overflow-y-auto overscroll-contain scroll-smooth">
                   <ChatMessageList :messages="chatMessages" :loading="chatLoading" />
                 </div>
+                <div v-if="chatError" class="px-4 pb-2">
+                  <div class="bg-red-50 border border-red-200 rounded-xl p-2.5 flex items-start gap-2">
+                    <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <p class="text-xs text-red-700 font-semibold">{{ chatError }}</p>
+                  </div>
+                </div>
+                <div class="border-t border-slate-200 p-3 sm:p-4 bg-white">
+                  <ChatInput :disabled="chatLoading" @submit="sendChat" />
+                </div>
               </div>
-            </div>
-            <div v-if="chatError" class="mx-5 mb-2">
-              <div class="bg-red-50 border border-red-200 rounded-xl p-2.5 flex items-start gap-2">
-                <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                <p class="text-xs text-red-700 font-semibold">{{ chatError }}</p>
-              </div>
-            </div>
-            <div class="border-t border-slate-200 p-4">
-              <ChatInput :disabled="chatLoading" @submit="sendChat" />
             </div>
           </div>
 

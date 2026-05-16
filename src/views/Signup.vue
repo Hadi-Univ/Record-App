@@ -84,6 +84,13 @@
           </svg>
           {{ loading ? t('signup.creating') : t('signup.createAccount') }}
         </button>
+
+        <p class="text-xs text-slate-500 text-center leading-relaxed">
+          By continuing, you agree to the
+          <router-link to="/terms-and-conditions" class="text-indigo-600 hover:text-indigo-800 font-semibold">
+            Terms &amp; Conditions
+          </router-link>.
+        </p>
       </form>
 
       <!-- Error message -->

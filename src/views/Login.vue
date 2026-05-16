@@ -88,6 +88,13 @@
           <router-link to="/signup" class="text-indigo-600 hover:text-indigo-800 font-semibold">{{ t('login.signUp') }}</router-link>
         </p>
 
+        <p class="text-xs text-slate-500 text-center leading-relaxed">
+          By continuing, you agree to the
+          <router-link to="/terms-and-conditions" class="text-indigo-600 hover:text-indigo-800 font-semibold">
+            Terms &amp; Conditions
+          </router-link>.
+        </p>
+
         <div class="relative flex py-6 items-center">
           <div class="flex-grow border-t border-slate-200"></div>
           <span class="flex-shrink-0 mx-4 text-slate-400 text-xs font-semibold uppercase tracking-wide">Or continue with</span>

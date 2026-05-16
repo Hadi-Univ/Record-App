@@ -36,6 +36,10 @@ const ROUTE_META = {
   '/reset-password': {
     title: 'Reset Password',
     description: 'Set a new password and return to your recording workflow.'
+  },
+  '/terms-and-conditions': {
+    title: 'Terms & Conditions',
+    description: 'Read the usage terms and account conditions for Record Note.'
   }
 }
 
