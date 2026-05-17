@@ -89,10 +89,14 @@
         </p>
 
         <p class="text-xs text-slate-500 text-center leading-relaxed">
-          By continuing, you agree to the
-          <router-link to="/terms-and-conditions" class="text-indigo-600 hover:text-indigo-800 font-semibold">
-            Terms &amp; Conditions
-          </router-link>.
+          {{ t('terms.consentPrefix') }}
+          <button
+            type="button"
+            @click="termsOpen = true"
+            class="text-indigo-600 hover:text-indigo-800 font-semibold"
+          >
+            {{ t('terms.title') }}
+          </button>.
         </p>
 
         <div class="relative flex py-6 items-center">
@@ -196,6 +200,7 @@
         Nothing is stored on external servers.
       </p>
     </div>
+    <TermsConditionsModal v-model="termsOpen" />
   </div>
 </template>
 
@@ -211,6 +216,7 @@ import {
 } from '../services/authService'
 import { env } from '../config/env'
 import { useI18n } from '../i18n/index.js'
+import TermsConditionsModal from '../components/TermsConditionsModal.vue'
 
 const router = useRouter()
 const { state } = useAppStore()
@@ -221,6 +227,7 @@ const tab = ref('basic')
 const identifier = ref('')
 const password = ref('')
 const showPassword = ref(false)
+const termsOpen = ref(false)
 const apiToken = ref('')
 const apiDisplayName = ref('')
 const apiEmail = ref('')

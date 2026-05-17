@@ -29,18 +29,20 @@ export const LOCALES = [
 
 const MESSAGES = { en, fr, es, ar, de, id }
 const STORAGE_KEY = 'i18n_locale'
+const normalizeLocaleCode = (code) => String(code || '').toLowerCase().split('-')[0]
 
 /**
  * Detect the best matching supported locale from the browser's language
  * preferences. Falls back to 'en' when no match is found.
  */
 export function detectBrowserLocale() {
+  if (typeof navigator === 'undefined') return 'en'
   const candidates = navigator.languages?.length
     ? navigator.languages
     : [navigator.language || 'en']
 
   for (const lang of candidates) {
-    const code = lang.split('-')[0].toLowerCase()
+    const code = normalizeLocaleCode(lang)
     if (MESSAGES[code]) return code
   }
   return 'en'
@@ -50,7 +52,8 @@ export function detectBrowserLocale() {
 function readPersistedLocale() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored && MESSAGES[stored]) return stored
+    const normalized = normalizeLocaleCode(stored)
+    if (normalized && MESSAGES[normalized]) return normalized
   } catch {
     // localStorage unavailable
   }
@@ -59,8 +62,10 @@ function readPersistedLocale() {
 
 /** Persist the locale to localStorage. */
 function writePersistedLocale(code) {
+  const normalized = normalizeLocaleCode(code)
+  if (!MESSAGES[normalized]) return
   try {
-    localStorage.setItem(STORAGE_KEY, code)
+    localStorage.setItem(STORAGE_KEY, normalized)
   } catch {
     // localStorage unavailable
   }
@@ -68,10 +73,11 @@ function writePersistedLocale(code) {
 
 /** Apply the locale's text direction to the root <html> element. */
 function applyDir(code) {
-  const locale = LOCALES.find(l => l.code === code)
+  const normalized = normalizeLocaleCode(code)
+  const locale = LOCALES.find(l => l.code === normalized)
   if (typeof document !== 'undefined') {
     document.documentElement.setAttribute('dir', locale?.dir ?? 'ltr')
-    document.documentElement.setAttribute('lang', code)
+    document.documentElement.setAttribute('lang', normalized || 'en')
   }
 }
 
@@ -83,8 +89,9 @@ applyDir(_initialLocale)
 const _locale = ref(_initialLocale)
 
 watch(_locale, (code) => {
-  writePersistedLocale(code)
-  applyDir(code)
+  const normalized = normalizeLocaleCode(code)
+  writePersistedLocale(normalized)
+  applyDir(normalized)
 })
 
 // ─── Core translation helper ──────────────────────────────────────────────────
@@ -141,8 +148,9 @@ export function useI18n() {
   }
 
   function setLocale(code) {
-    if (MESSAGES[code]) {
-      _locale.value = code
+    const normalized = normalizeLocaleCode(code)
+    if (MESSAGES[normalized]) {
+      _locale.value = normalized
     }
   }
 

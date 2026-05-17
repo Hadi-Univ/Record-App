@@ -152,7 +152,20 @@ export default {
     unknownContributor: 'Unknown contributor',
     viewProfile: 'View profile',
     retry: 'Retry',
-    apiBackendRepository: 'Open API Backend Repository'
+    apiBackendRepository: 'Open API Backend Repository',
+    theme: 'Theme',
+    currentTheme: 'Current: {theme}',
+    username: 'Username',
+    usernameHint: 'Username can only be changed once every 30 days.',
+    updateAccount: 'Update Account',
+    profileUpdated: 'Profile updated successfully.',
+    profileUpdateFailed: 'Failed to update profile.',
+    runtimeConfigTitle: 'Configuration API',
+    runtimeConfigTokenPlaceholder: 'Config admin token',
+    loading: 'Loading…',
+    load: 'Load',
+    resetting: 'Resetting…',
+    resetToDefault: 'Reset to default'
   },
   login: {
     appName: 'Record Note',
@@ -213,5 +226,24 @@ export default {
     passwordMismatch: 'Passwords do not match.',
     resetPassword: 'Reset Password',
     resetting: 'Resetting…'
+  },
+  terms: {
+    title: 'Terms & Conditions',
+    consentPrefix: 'By continuing, you agree to the',
+    intro: 'By logging in or creating an account, you agree to these Terms & Conditions.',
+    reviewHint: 'Review the Terms & Conditions that apply when using your account and this service.',
+    open: 'Open Terms & Conditions',
+    close: 'Close',
+    useTitle: '1. Use of the Service',
+    useBody: 'Record Note is provided to help users upload recordings, generate transcripts, and access AI-assisted features. You are responsible for how you use the platform and for ensuring your use follows applicable laws.',
+    accountTitle: '2. Account Responsibility',
+    accountBody: 'You are responsible for all actions taken through your account and credentials. Keep your login details secure and notify the team if you suspect unauthorized access.',
+    contentTitle: '3. Content and Privacy',
+    contentBody: 'You should only upload audio and data that you are allowed to process. Do not submit content that violates privacy, copyright, or other legal protections.',
+    availabilityTitle: '4. Availability and Changes',
+    availabilityBody: 'Features and availability may change over time. The service may be updated, improved, or temporarily unavailable due to maintenance or technical issues.',
+    contactTitle: '5. Contact',
+    contactBody: 'If you have questions about these terms, contact the project maintainers through the official repository channels.',
+    lastUpdated: 'Last updated: May 2026'
   }
 }

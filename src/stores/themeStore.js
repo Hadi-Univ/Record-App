@@ -1,9 +1,12 @@
 import { reactive } from 'vue'
-import { THEME_KEY, THEME_TOKENS } from '../theme/themeTokens'
+import { THEME_KEY, THEME_OPTIONS, THEME_TOKENS } from '../theme/themeTokens'
+
+const VALID_PREFERENCES = new Set(THEME_OPTIONS.map(option => option.value))
+const normalizePreference = (value) => (VALID_PREFERENCES.has(value) ? value : 'system')
 
 const savedPreference = (() => {
   try {
-    return localStorage.getItem(THEME_KEY) || 'system'
+    return normalizePreference(localStorage.getItem(THEME_KEY) || 'system')
   } catch {
     return 'system'
   }
@@ -19,24 +22,29 @@ const systemTheme = () =>
     ? 'dark'
     : 'light'
 
-const resolveTheme = (preference) => (preference === 'system' ? systemTheme() : preference)
+const resolveTheme = (preference) => {
+  const normalized = normalizePreference(preference)
+  return normalized === 'system' ? systemTheme() : normalized
+}
 
 const applyTheme = (preference = state.preference) => {
-  const resolved = resolveTheme(preference)
+  const normalizedPreference = normalizePreference(preference)
+  const resolved = resolveTheme(normalizedPreference)
   const tokens = THEME_TOKENS[resolved] || THEME_TOKENS.light
-  state.preference = preference
+  state.preference = normalizedPreference
   state.resolvedTheme = resolved
 
   if (typeof document !== 'undefined') {
     const root = document.documentElement
-    root.setAttribute('data-theme', preference)
+    root.setAttribute('data-theme', resolved)
+    root.setAttribute('data-theme-preference', normalizedPreference)
     root.setAttribute('data-theme-resolved', resolved)
     root.style.colorScheme = resolved === 'light' ? 'light' : 'dark'
     Object.entries(tokens).forEach(([key, value]) => root.style.setProperty(key, value))
   }
 
   try {
-    localStorage.setItem(THEME_KEY, preference)
+    localStorage.setItem(THEME_KEY, normalizedPreference)
   } catch {
     // ignore storage failures
   }
@@ -56,4 +64,3 @@ export const useThemeStore = () => ({
   setPreference,
   handleSystemThemeChange
 })
-
