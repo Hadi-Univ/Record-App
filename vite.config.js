@@ -12,7 +12,11 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': {
           target: apiTarget,
-          changeOrigin: true
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+          headers: {
+            'ngrok-skip-browser-warning': '1'
+          }
         }
       }
     },
