@@ -79,7 +79,7 @@
           to="/history"
           class="motion-interactive text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
         >
-          View all →
+          {{ t('home.viewAll') }}
         </router-link>
       </div>
 
@@ -133,7 +133,7 @@
           :key="job.folder_name"
           type="button"
           @click="openJob(job.folder_name)"
-          :aria-label="`Open job ${job.folder_name}`"
+          :aria-label="t('home.openJobAria', { job: job.folder_name })"
           class="motion-interactive w-full text-left flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-inset"
         >
           <div class="flex items-center gap-3 min-w-0">

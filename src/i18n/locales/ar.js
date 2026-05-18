@@ -9,6 +9,18 @@ export default {
     signedInAs: 'مسجل الدخول باسم',
     toggleMenu: 'تبديل القائمة'
   },
+
+  theme: {
+    system: 'النظام',
+    softAurora: 'أورورا ناعمة',
+    minimalLatte: 'لاتيه بسيط',
+    oceanBreeze: 'نسيم المحيط',
+    sakuraLight: 'ساكورا فاتح',
+    warmSunset: 'غروب دافئ',
+    midnightNeon: 'نيون منتصف الليل',
+    deepForest: 'غابة عميقة',
+    highContrast: 'تباين عالٍ'
+  },
   home: {
     morning: 'صباح الخير',
     afternoon: 'مساء الخير',

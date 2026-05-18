@@ -1,4 +1,5 @@
 import { defineComponent, h } from 'vue'
+import { useI18n } from '../i18n/index.js'
 
 export default defineComponent({
   name: 'ChatMessageList',
@@ -7,6 +8,7 @@ export default defineComponent({
     loading: { type: Boolean, default: false }
   },
   setup(props) {
+    const { t } = useI18n()
     return () =>
       h('div', { class: 'min-h-full p-4 sm:p-5 space-y-3' }, [
         ...((props.messages || []).length
@@ -26,9 +28,9 @@ export default defineComponent({
                 )
               ])
             )
-          : [h('p', { class: 'text-xs text-slate-400 text-center py-8' }, 'Start a conversation about this transcript.')]),
+          : [h('p', { class: 'text-xs text-slate-400 text-center py-8' }, t('chat.startConversation'))]),
         props.loading
-          ? h('p', { class: 'text-xs text-slate-400' }, 'AI is responding…')
+          ? h('p', { class: 'text-xs text-slate-400' }, t('chat.aiResponding'))
           : null
       ])
   }

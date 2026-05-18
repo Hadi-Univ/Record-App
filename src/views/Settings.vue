@@ -19,26 +19,39 @@
           class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
         >
           <option
-            v-for="loc in availableLocales"
+            v-for="loc in languageOptions"
             :key="loc.code"
             :value="loc.code"
           >
-            {{ loc.label }}
+            {{ loc.displayLabel }}
           </option>
         </select>
       </div>
     </div>
 
     <ApiSettingsPanel
+      v-if="showApiRuntimeConfig"
       :loading="configStore.state.loading || configStore.state.saving"
       :resetting="configStore.state.resetting"
       :error="configStore.state.error"
       @load="loadRuntimeConfig"
       @reset="resetRuntimeConfig"
     />
-    <AiProviderSettings :config="configStore.state.config || {}" @save="saveRuntimePatch" />
-    <UploadSettings :config="configStore.state.config || {}" @save="saveRuntimePatch" />
-    <PerformanceSettings :config="configStore.state.config || {}" @save="saveRuntimePatch" />
+    <AiProviderSettings
+      v-if="showApiRuntimeConfig"
+      :config="configStore.state.config || {}"
+      @save="saveRuntimePatch"
+    />
+    <UploadSettings
+      v-if="showApiRuntimeConfig"
+      :config="configStore.state.config || {}"
+      @save="saveRuntimePatch"
+    />
+    <PerformanceSettings
+      v-if="showApiRuntimeConfig"
+      :config="configStore.state.config || {}"
+      @save="saveRuntimePatch"
+    />
     <ThemeSettings />
 
     <!-- LLM Provider Settings -->
@@ -53,12 +66,12 @@
           v-model="settings.provider"
           class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
         >
-          <option value="ollama">Ollama (Local)</option>
-          <option value="llamacpp">Llama CPP (Local)</option>
-          <option value="openai">OpenAI (ChatGPT)</option>
-          <option value="claude">Anthropic Claude</option>
-          <option value="gemini">Google Gemini</option>
-          <option value="groq">Groq</option>
+          <option value="ollama">{{ t('settings.providerOptions.ollama') }}</option>
+          <option value="llamacpp">{{ t('settings.providerOptions.llamacpp') }}</option>
+          <option value="openai">{{ t('settings.providerOptions.openai') }}</option>
+          <option value="claude">{{ t('settings.providerOptions.claude') }}</option>
+          <option value="gemini">{{ t('settings.providerOptions.gemini') }}</option>
+          <option value="groq">{{ t('settings.providerOptions.groq') }}</option>
         </select>
       </div>
 
@@ -84,7 +97,7 @@
           <input
             :type="showApiKey ? 'text' : 'password'"
             v-model="settings.apiKey"
-            placeholder="sk-..."
+            :placeholder="t('settings.apiKeyPlaceholder')"
             class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 pr-10"
           />
           <button
@@ -114,7 +127,7 @@
         <input
           type="url"
           v-model="settings.apiUrl"
-          placeholder="http://localhost:8000 (leave blank to use dev proxy)"
+          :placeholder="t('settings.apiBaseUrlPlaceholder')"
           class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
         />
         <p class="text-xs text-slate-400">{{ t('settings.apiBaseUrlHint') }}</p>
@@ -181,7 +194,7 @@
         class="space-y-3"
       >
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Email</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('login.email') }}</label>
           <input
             v-model="profileEmail"
             type="email"
@@ -191,7 +204,7 @@
           />
         </div>
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Username</label>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ t('settings.username') }}</label>
           <input
             v-model="profileUsername"
             type="text"
@@ -199,7 +212,7 @@
             autocomplete="username"
             class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
-          <p class="text-xs text-slate-400">Username can only be changed once every 30 days.</p>
+          <p class="text-xs text-slate-400">{{ t('settings.usernameHint') }}</p>
         </div>
         <button
           type="submit"
@@ -210,7 +223,7 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
           </svg>
-          {{ updatingProfile ? 'Updating…' : 'Update Account' }}
+          {{ updatingProfile ? t('settings.updating') : t('settings.updateAccount') }}
         </button>
         <div
           v-if="profileStatus"
@@ -399,19 +412,18 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-3">
-      <h2 class="text-base font-bold text-slate-900">Terms &amp; Conditions</h2>
-      <p class="text-sm text-slate-500">
-        Review the Terms &amp; Conditions that apply when using your account and this service.
-      </p>
-      <router-link
-        to="/terms-and-conditions"
+      <h2 class="text-base font-bold text-slate-900">{{ t('terms.title') }}</h2>
+      <p class="text-sm text-slate-500">{{ t('terms.reviewHint') }}</p>
+      <button
+        type="button"
+        @click="termsOpen = true"
         class="motion-interactive inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
       >
-        Open Terms &amp; Conditions
+        {{ t('terms.open') }}
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
         </svg>
-      </router-link>
+      </button>
     </div>
 
     <!-- Auto-save note -->
@@ -419,6 +431,7 @@
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
       {{ t('settings.autoSaveNote') }}
     </p>
+    <TermsConditionsModal v-model="termsOpen" />
   </div>
 </template>
 
@@ -435,6 +448,7 @@ import AiProviderSettings from '../components/settings/AiProviderSettings.vue'
 import UploadSettings from '../components/settings/UploadSettings.vue'
 import PerformanceSettings from '../components/settings/PerformanceSettings.vue'
 import ThemeSettings from '../components/settings/ThemeSettings.vue'
+import TermsConditionsModal from '../components/TermsConditionsModal.vue'
 
 const store = useAppStore()
 const configStore = useConfigStore()
@@ -450,6 +464,7 @@ const CONTRIBUTORS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days in milliseco
 const showApiKey = ref(false)
 const testing = ref(false)
 const connectionStatus = ref(null)
+const termsOpen = ref(false)
 const contributors = ref([])
 const contributorsLoading = ref(false)
 const contributorsError = ref('')
@@ -469,6 +484,12 @@ const profileStatus = ref(null)
 
 const changePasswordMismatch = computed(
   () => confirmNewPassword.value.length > 0 && newPassword.value !== confirmNewPassword.value
+)
+const languageOptions = computed(() =>
+  availableLocales.map((loc) => ({
+    ...loc,
+    displayLabel: `${loc.label} (${loc.code.toUpperCase()})`
+  }))
 )
 
 const handleChangePassword = async () => {
@@ -498,9 +519,9 @@ const handleUpdateProfile = async () => {
     })
     profileEmail.value = store.state.user?.email || profileEmail.value
     profileUsername.value = store.state.user?.username || profileUsername.value
-    profileStatus.value = { ok: true, message: 'Profile updated successfully.' }
+    profileStatus.value = { ok: true, message: t('settings.profileUpdated') }
   } catch (err) {
-    profileStatus.value = { ok: false, message: err.message || 'Failed to update profile.' }
+    profileStatus.value = { ok: false, message: err.message || t('settings.profileUpdateFailed') }
   } finally {
     updatingProfile.value = false
   }
@@ -521,6 +542,7 @@ const showApiBackendRepoLink = computed(() => {
   const role = (store.state.user?.role || '').toLowerCase().trim()
   return role === API_USER_ROLE || store.state.authMethod === 'api'
 })
+const showApiRuntimeConfig = computed(() => store.state.authMethod === 'api')
 
 const handleLogout = () => {
   store.logout()
@@ -645,6 +667,7 @@ const testConnection = async () => {
 }
 
 const loadRuntimeConfig = async () => {
+  if (!showApiRuntimeConfig.value) return
   await configStore.loadConfig()
 }
 
@@ -658,7 +681,9 @@ const resetRuntimeConfig = async () => {
 
 onMounted(() => {
   fetchContributors()
-  loadRuntimeConfig()
+  if (showApiRuntimeConfig.value) {
+    loadRuntimeConfig()
+  }
 })
 
 watch(
@@ -668,6 +693,17 @@ watch(
     profileUsername.value = user?.username || ''
   },
   { deep: true }
+)
+
+watch(
+  () => store.state.authMethod,
+  (authMethod) => {
+    if (authMethod === 'api') {
+      loadRuntimeConfig()
+      return
+    }
+    configStore.state.config = null
+  }
 )
 
 onBeforeUnmount(() => {

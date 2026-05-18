@@ -9,6 +9,18 @@ export default {
     signedInAs: 'Connecté en tant que',
     toggleMenu: 'Basculer le menu'
   },
+
+  theme: {
+    system: 'Système',
+    softAurora: 'Aurore Douce',
+    minimalLatte: 'Latte Minimal',
+    oceanBreeze: 'Brise Océanique',
+    sakuraLight: 'Sakura Clair',
+    warmSunset: 'Coucher Serein',
+    midnightNeon: 'Néon Minuit',
+    deepForest: 'Forêt Profonde',
+    highContrast: 'Contraste élevé'
+  },
   home: {
     morning: 'Bonjour',
     afternoon: 'Bon après-midi',

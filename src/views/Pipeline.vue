@@ -45,7 +45,7 @@
       <!-- Overall Completion Progress Bar (shown once pipeline has started) -->
       <div v-if="pipeline.currentStep > 1 || pipeline.status === 'done'" class="mt-5">
         <div class="flex items-center justify-between text-xs font-semibold text-slate-600 mb-1.5">
-          <span>Pipeline Progress</span>
+          <span>{{ t('pipeline.progress') }}</span>
           <span class="font-mono">{{ completionRate }}%</span>
         </div>
         <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
@@ -76,7 +76,7 @@
       <button
         @click="pipeline.lastError = ''"
         class="motion-interactive text-red-400 hover:text-red-600 transition text-lg leading-none"
-        aria-label="Dismiss error"
+        :aria-label="t('pipeline.dismissError')"
       >×</button>
     </div>
 
@@ -91,14 +91,14 @@
         <svg class="w-4 h-4 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
         </svg>
-        Pipeline Insights
+         {{ t('pipeline.insights') }}
       </h2>
 
       <!-- Key Metrics Grid -->
       <div class="grid grid-cols-3 gap-3 mb-5">
         <div class="bg-indigo-50 rounded-xl p-3 text-center">
           <div class="text-2xl font-extrabold text-indigo-600">{{ completionRate }}%</div>
-          <div class="text-xs text-slate-500 mt-0.5">Completed</div>
+          <div class="text-xs text-slate-500 mt-0.5">{{ t('home.completed') }}</div>
         </div>
         <div class="bg-slate-50 rounded-xl p-3 text-center">
           <div class="font-extrabold text-slate-800" :class="pipeline.status === 'running' ? 'text-base' : 'text-2xl'">
@@ -107,23 +107,23 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
               </svg>
-              {{ formatDuration(totalDurationMs) || 'Running…' }}
+              {{ formatDuration(totalDurationMs) || t('pipeline.runningNow') }}
             </span>
             <span v-else>{{ formatDuration(totalDurationMs) }}</span>
           </div>
-          <div class="text-xs text-slate-500 mt-0.5">Total Time</div>
+          <div class="text-xs text-slate-500 mt-0.5">{{ t('pipeline.totalTime') }}</div>
         </div>
         <div class="bg-amber-50 rounded-xl p-3 text-center">
           <div class="text-sm font-extrabold text-amber-700 leading-snug truncate">
-            {{ bottleneckStage ? stageLabels[bottleneckStage] : '—' }}
+             {{ bottleneckStage ? stageLabels[bottleneckStage] : t('pipeline.noDuration') }}
           </div>
-          <div class="text-xs text-slate-500 mt-0.5">Slowest Stage</div>
+          <div class="text-xs text-slate-500 mt-0.5">{{ t('pipeline.slowestStage') }}</div>
         </div>
       </div>
 
       <!-- Stage Duration Bars -->
       <div v-if="hasStageMetrics || pipeline.status === 'running'" class="space-y-3 mb-5">
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Stage Durations</p>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ t('pipeline.stageDurations') }}</p>
 
         <!-- Completed stages -->
         <div v-for="[stage, ms] in Object.entries(stageDurationsMs)" :key="stage" class="space-y-1">
@@ -133,7 +133,7 @@
               <span
                 v-if="stage === bottleneckStage"
                 class="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full"
-              >bottleneck</span>
+              >{{ t('pipeline.bottleneck') }}</span>
             </span>
             <span class="font-mono text-slate-500">{{ formatDuration(ms) }}</span>
           </div>
@@ -170,16 +170,16 @@
       <!-- Timestamps & Owner Row -->
       <div class="flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-3 border-t border-slate-100 text-xs text-slate-500">
         <span v-if="pipeline.startedAt">
-          Started <span class="font-semibold text-slate-700">{{ formatTimestamp(pipeline.startedAt) }}</span>
+          {{ t('pipeline.started') }} <span class="font-semibold text-slate-700">{{ formatTimestamp(pipeline.startedAt) }}</span>
         </span>
         <span v-if="pipeline.completedAt">
-          Completed <span class="font-semibold text-slate-700">{{ formatTimestamp(pipeline.completedAt) }}</span>
+          {{ t('pipeline.completedAt') }} <span class="font-semibold text-slate-700">{{ formatTimestamp(pipeline.completedAt) }}</span>
         </span>
         <span v-if="store.state.user?.name || store.state.user?.email">
-          Owner <span class="font-semibold text-slate-700">{{ store.state.user.name || store.state.user.email }}</span>
+          {{ t('pipeline.owner') }} <span class="font-semibold text-slate-700">{{ store.state.user.name || store.state.user.email }}</span>
         </span>
         <span v-if="pipeline.folderName" class="font-mono">
-          Job <span class="font-semibold text-slate-700">{{ pipeline.folderName }}</span>
+          {{ t('pipeline.job') }} <span class="font-semibold text-slate-700">{{ pipeline.folderName }}</span>
         </span>
       </div>
     </div>
@@ -255,9 +255,9 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
               </svg>
             </div>
-            <p class="text-sm font-semibold text-slate-700">Drop your audio file here</p>
-            <p class="text-xs text-slate-400 mt-1">or click to browse</p>
-            <p class="text-xs text-slate-400 mt-2">Supports MP3, WAV, M4A, OGG, FLAC, AAC, OPUS, WEBM (audio only).</p>
+            <p class="text-sm font-semibold text-slate-700">{{ t('pipeline.dropAudio') }}</p>
+            <p class="text-xs text-slate-400 mt-1">{{ t('pipeline.orClickToBrowse') }}</p>
+            <p class="text-xs text-slate-400 mt-2">{{ t('pipeline.supportedFormats') }}</p>
           </div>
           <div v-else class="flex items-center justify-center gap-3">
             <svg class="w-6 h-6 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -271,7 +271,7 @@
               @click.stop="clearFile"
               :disabled="isPipelineLocked"
               class="motion-interactive ml-2 text-slate-400 hover:text-red-500 transition text-xl leading-none"
-              aria-label="Remove file"
+              :aria-label="t('pipeline.removeFileAria')"
             >×</button>
           </div>
         </div>
@@ -290,13 +290,13 @@
             @click="startRecording"
             :disabled="isPipelineLocked"
             class="motion-interactive w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 transition flex items-center justify-center shadow-lg"
-            aria-label="Start recording"
+              :aria-label="t('pipeline.startRecordingAria')"
           >
             <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 1a4 4 0 014 4v7a4 4 0 01-8 0V5a4 4 0 014-4zm0 2a2 2 0 00-2 2v7a2 2 0 004 0V5a2 2 0 00-2-2zM8.5 19.5A7.5 7.5 0 0019 12h2a9.5 9.5 0 01-9.5 9.5v2h-1v-2A9.5 9.5 0 013 12h2a7.5 7.5 0 005.5 7.326V21H8.5v-1.5z"/>
             </svg>
           </button>
-          <p class="text-sm text-slate-500">Tap to start recording</p>
+          <p class="text-sm text-slate-500">{{ t('pipeline.tapToStartRecording') }}</p>
         </div>
 
         <!-- Recording in progress -->
@@ -310,18 +310,18 @@
               <span class="text-base font-mono font-bold text-slate-800 tabular-nums">
                 {{ formatRecordingTime(recordingSeconds) }}
               </span>
-              <span class="text-xs text-slate-400">Recording…</span>
+              <span class="text-xs text-slate-400">{{ t('pipeline.recording') }}</span>
             </div>
             <button
               @click="stopRecording"
               :disabled="isPipelineLocked"
               class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold transition flex items-center gap-2"
-              aria-label="Stop recording"
+              :aria-label="t('pipeline.stopRecordingAria')"
             >
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <rect x="6" y="6" width="12" height="12" rx="2"/>
               </svg>
-              Stop
+              {{ t('pipeline.stopRecording') }}
             </button>
           </div>
         </div>
@@ -333,7 +333,7 @@
               <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
               </svg>
-              Recording ready ({{ formatRecordingTime(recordingSeconds) }})
+              {{ t('pipeline.recordingReady', { duration: formatRecordingTime(recordingSeconds) }) }}
             </div>
             <audio :src="audioBlobUrl" controls class="w-full h-10 rounded"></audio>
           </div>
@@ -343,7 +343,7 @@
               :disabled="isPipelineLocked"
               class="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition"
             >
-              Discard
+              {{ t('pipeline.discard') }}
             </button>
           </div>
         </div>
@@ -359,21 +359,21 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          Uploading &amp; Transcribing…
+          {{ t('pipeline.uploadingAndTranscribing') }}
         </span>
         <span v-else class="flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
-          Start Pipeline
+          {{ t('pipeline.startPipeline') }}
         </span>
       </button>
 
       <!-- Chunked upload progress bar -->
       <div v-if="chunkUploadStep" class="mt-4 space-y-1.5">
         <div class="flex items-center justify-between text-xs font-semibold text-slate-600">
-          <span>{{ chunkUploadStep === 'assembling' ? 'Assembling &amp; transcribing…' : 'Uploading chunks…' }}</span>
+          <span>{{ chunkUploadStep === 'assembling' ? t('pipeline.assemblingAndTranscribing') : t('pipeline.uploadingChunks') }}</span>
           <span class="font-mono tabular-nums">{{ chunkUploadProgress }}%</span>
         </div>
         <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
@@ -392,7 +392,7 @@
     >
       <div class="flex items-start justify-between gap-3 mb-4">
         <div>
-          <h2 class="text-base font-bold text-slate-900">Current Job</h2>
+          <h2 class="text-base font-bold text-slate-900">{{ t('pipeline.currentJob') }}</h2>
           <p class="text-xs text-slate-500 font-mono mt-1">{{ pipeline.folderName }}</p>
         </div>
         <button
@@ -400,7 +400,7 @@
           :disabled="isPipelineLocked"
           class="text-xs text-red-500 hover:text-red-700 font-semibold underline transition"
         >
-          Start Over
+          {{ t('pipeline.startOver') }}
         </button>
       </div>
 
@@ -409,7 +409,7 @@
         <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
           <p class="text-xs text-emerald-700 font-semibold flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-            Transcription complete</p>
+            {{ t('pipeline.transcriptionComplete') }}</p>
           <p v-if="pipeline.results.transcription" class="text-xs text-emerald-600 mt-1 line-clamp-3">
             {{ pipeline.results.transcription }}
           </p>
@@ -424,13 +424,13 @@
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            Summarizing…
+            {{ t('pipeline.summarizing') }}
           </span>
           <span v-else class="flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
-            Run Summarize
+            {{ t('pipeline.runSummarize') }}
           </span>
         </button>
       </div>
@@ -440,7 +440,7 @@
         <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
           <p class="text-xs text-emerald-700 font-semibold flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-            Summarization complete</p>
+            {{ t('pipeline.summarizationComplete') }}</p>
           <p v-if="pipeline.results.summary" class="text-xs text-emerald-600 mt-1 line-clamp-3">
             {{ pipeline.results.summary }}
           </p>
@@ -455,13 +455,13 @@
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            Visualizing…
+            {{ t('pipeline.visualizing') }}
           </span>
           <span v-else class="flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
             </svg>
-            Run Visualize
+            {{ t('pipeline.runVisualize') }}
           </span>
         </button>
       </div>
@@ -474,7 +474,7 @@
     >
       <div class="flex items-start justify-between gap-3">
         <div>
-          <h2 class="text-base font-bold text-slate-900">Pipeline Results</h2>
+          <h2 class="text-base font-bold text-slate-900">{{ t('pipeline.results') }}</h2>
           <p class="text-xs text-slate-500 font-mono mt-1">{{ pipeline.folderName }}</p>
         </div>
         <button
@@ -482,7 +482,7 @@
           :disabled="isPipelineLocked"
           class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold underline transition"
         >
-          New Job
+          {{ t('pipeline.newJob') }}
         </button>
       </div>
 
@@ -491,17 +491,17 @@
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Transcription
+            {{ t('pipeline.transcript') }}
           </h3>
           <div class="flex items-center gap-3">
               <button
                 @click="rerunTranscribe"
                 :disabled="isPipelineLocked"
                 class="text-xs text-slate-500 hover:text-indigo-600 disabled:opacity-40 font-semibold transition flex items-center gap-1"
-                title="Re-run transcription"
+                :title="t('pipeline.rerunTranscription')"
               >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              Re-run
+              {{ t('pipeline.rerun') }}
             </button>
             <a
               v-if="pipeline.folderName"
@@ -510,7 +510,7 @@
               class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              Download
+              {{ t('pipeline.download') }}
             </a>
           </div>
         </div>
@@ -524,17 +524,17 @@
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10"/></svg>
-            Summary
+            {{ t('pipeline.summary') }}
           </h3>
           <div v-if="pipeline.folderName" class="flex items-center gap-3">
               <button
                 @click="rerunSummarize"
                 :disabled="isPipelineLocked"
                 class="text-xs text-slate-500 hover:text-indigo-600 disabled:opacity-40 font-semibold transition flex items-center gap-1"
-                title="Re-run summarization"
+                :title="t('pipeline.rerunSummarization')"
               >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              Re-run
+              {{ t('pipeline.rerun') }}
             </button>
             <a
               :href="downloadUrl('summary')"
@@ -542,7 +542,7 @@
               class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              TXT
+              {{ t('pipeline.txt') }}
             </a>
             <a
               :href="downloadUrl('summary_html')"
@@ -550,7 +550,7 @@
               class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              HTML
+              {{ t('pipeline.html') }}
             </a>
           </div>
         </div>
@@ -564,17 +564,17 @@
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            Visualization
+            {{ t('pipeline.visualization') }}
           </h3>
           <div v-if="pipeline.folderName" class="flex items-center gap-3">
               <button
                 @click="rerunVisualize"
                 :disabled="isPipelineLocked"
                 class="text-xs text-slate-500 hover:text-indigo-600 disabled:opacity-40 font-semibold transition flex items-center gap-1"
-                title="Re-run visualization"
+                :title="t('pipeline.rerunVisualization')"
               >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              Re-run
+              {{ t('pipeline.rerun') }}
             </button>
             <a
               :href="downloadUrl('mindmap_png')"
@@ -582,7 +582,7 @@
               class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              PNG
+              {{ t('pipeline.png') }}
             </a>
           </div>
         </div>
@@ -596,7 +596,7 @@
           v-else-if="pipeline.folderName"
           :src="downloadUrl('mindmap_png')"
           class="w-full rounded-xl border border-slate-200"
-          alt="Visualization"
+          :alt="t('pipeline.visualizationAlt')"
           @error="$event.target.style.display = 'none'"
         />
       </div>
@@ -605,7 +605,7 @@
       <div v-if="pipeline.results.keywords && pipeline.results.keywords.length" class="space-y-2">
         <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
-          Key Points
+          {{ t('pipeline.keyPoints') }}
         </h3>
         <div class="flex flex-wrap gap-2">
           <span
@@ -659,7 +659,11 @@ let recordingTimer = null
 const micStream = ref(null)
 
 // ── Pipeline Metrics ──────────────────────────────────────────────────────────
-const stageLabels = { upload: 'Upload & Transcribe', summarize: 'Summarize', visualize: 'Visualize' }
+const stageLabels = computed(() => ({
+  upload: t('pipeline.uploadFile'),
+  summarize: t('pipeline.summarize'),
+  visualize: t('pipeline.visualize')
+}))
 const stageBarColors = { upload: 'bg-indigo-500', summarize: 'bg-amber-500', visualize: 'bg-purple-500' }
 
 // Live clock — ticks every second while pipeline is running so elapsed times stay current
@@ -718,7 +722,7 @@ const activeStageStart = computed(() => {
 })
 
 const formatDuration = (ms) => {
-  if (!ms || ms <= 0) return '—'
+  if (!ms || ms <= 0) return t('pipeline.noDuration')
   const totalSecs = Math.floor(ms / 1000)
   if (totalSecs < 60) return `${totalSecs}s`
   const m = Math.floor(totalSecs / 60)
@@ -814,14 +818,14 @@ const validateSelectedFile = (file) => {
   const mimeType = String(file?.type || '').toLowerCase()
 
   if (mimeType.startsWith('video/') || BLOCKED_VIDEO_EXTENSIONS.has(extension)) {
-    return 'Video files are not allowed. Please upload an audio file.'
+    return t('pipeline.videoNotAllowed')
   }
 
   if (
     !mimeType.startsWith('audio/') &&
     (!extension || !ALLOWED_AUDIO_EXTENSIONS.has(extension))
   ) {
-    return 'Unsupported file format. Please upload a valid audio file.'
+    return t('pipeline.unsupportedFormat')
   }
 
   return ''
@@ -847,7 +851,7 @@ const startRecording = async () => {
     micStream.value = await navigator.mediaDevices.getUserMedia({ audio: true })
   } catch (err) {
     console.error('Microphone access error:', err)
-    recordError.value = 'Microphone access denied. Please allow microphone permissions and try again.'
+    recordError.value = t('pipeline.microphoneDenied')
     return
   }
 
@@ -962,7 +966,7 @@ const recoverPipelineAfterRefresh = async () => {
     pipeline.status = 'error'
     releaseProcessingLock()
     uploadProcessingNotice.value = ''
-    pipeline.lastError = 'Pipeline was interrupted before job info was saved. Please start again.'
+    pipeline.lastError = t('pipeline.interruptedBeforeSave')
     return
   }
 
@@ -986,7 +990,7 @@ const recoverPipelineAfterRefresh = async () => {
     pipeline.status = 'error'
     releaseProcessingLock()
     uploadProcessingNotice.value = ''
-    pipeline.lastError = err.message || 'Failed to recover pipeline progress after refresh.'
+    pipeline.lastError = err.message || t('pipeline.recoveryFailed')
   }
 }
 
@@ -1008,7 +1012,7 @@ const startPipeline = async () => {
   pipeline.status = 'running'
   pipeline.currentStep = 1
   pipeline.lastError = ''
-  pipeline.currentSubStep = 'Uploading file chunks to server…'
+  pipeline.currentSubStep = t('pipeline.stageUploadSubstep')
   pipeline.startedAt = Date.now()
   pipeline.completedAt = null
   pipeline.stageTimings = { upload: { start: Date.now() } }
@@ -1018,7 +1022,7 @@ const startPipeline = async () => {
     const transcribeResult = await uploadFileChunked(fileToUpload)
     pipeline.stageTimings.upload.end = Date.now()
     pipeline.currentSubStep = ''
-    uploadProcessingNotice.value = 'File uploaded successfully. Please wait a moment while the system processes your file.'
+    uploadProcessingNotice.value = t('pipeline.uploadSuccessNotice')
     pipeline.folderName = transcribeResult.folder_name || transcribeResult.folderName || ''
     pipeline.fileName =
       transcribeResult.file_name ||
@@ -1087,7 +1091,7 @@ const uploadFileChunked = async (file) => {
   }
 
   // Assemble + transcribe
-  pipeline.currentSubStep = 'Assembling & transcribing audio…'
+  pipeline.currentSubStep = t('pipeline.stageAssemblingSubstep')
   chunkUploadStep.value = 'assembling'
   chunkUploadProgress.value = 95
   const result = await api.completeChunkedUpload(upload_id)
@@ -1102,7 +1106,7 @@ const runSummarize = async () => {
   beginProcessingLock()
   pipeline.status = 'running'
   pipeline.lastError = ''
-  pipeline.currentSubStep = 'Summarizing transcript…'
+  pipeline.currentSubStep = t('pipeline.stageSummarizingSubstep')
   pipeline.stageTimings.summarize = { start: Date.now() }
 
   try {
@@ -1135,7 +1139,7 @@ const runVisualize = async () => {
   beginProcessingLock()
   pipeline.status = 'running'
   pipeline.lastError = ''
-  pipeline.currentSubStep = 'Generating visualization…'
+  pipeline.currentSubStep = t('pipeline.stageVisualizingSubstep')
   pipeline.stageTimings.visualize = { start: Date.now() }
 
   try {
@@ -1169,7 +1173,7 @@ const rerunTranscribe = async () => {
   uploadProcessingNotice.value = ''
   pipeline.status = 'running'
   pipeline.lastError = ''
-  pipeline.currentSubStep = 'Re-transcribing audio…'
+  pipeline.currentSubStep = t('pipeline.stageRetrancribingSubstep')
   pipeline.stageTimings = { upload: { start: Date.now() } }
   pipeline.completedAt = null
 

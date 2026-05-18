@@ -1,4 +1,5 @@
 import { defineComponent, h } from 'vue'
+import { useI18n } from '../i18n/index.js'
 
 export default defineComponent({
   name: 'ChatHistoryPanel',
@@ -9,11 +10,12 @@ export default defineComponent({
   },
   emits: ['select', 'delete'],
   setup(props, { emit }) {
+    const { t } = useI18n()
     return () =>
       h('div', { class: 'bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-2 h-full min-h-0 overflow-y-auto' }, [
-        h('div', { class: 'text-xs font-bold text-slate-500 uppercase tracking-wide' }, 'Conversations'),
+        h('div', { class: 'text-xs font-bold text-slate-500 uppercase tracking-wide' }, t('chat.conversations')),
         props.loading
-          ? h('p', { class: 'text-xs text-slate-400' }, 'Loading sessions…')
+          ? h('p', { class: 'text-xs text-slate-400' }, t('chat.loadingSessions'))
           : null,
         ...(props.sessions || []).map((session) =>
           h(
@@ -34,8 +36,8 @@ export default defineComponent({
                   onClick: () => emit('select', session.session_id)
                 },
                 [
-                  h('p', { class: 'text-xs font-semibold text-slate-700 truncate' }, session.title || 'Conversation'),
-                  h('p', { class: 'text-[11px] text-slate-400 truncate mt-0.5' }, session.preview || 'No messages yet')
+                  h('p', { class: 'text-xs font-semibold text-slate-700 truncate' }, session.title || t('chat.conversationFallback')),
+                  h('p', { class: 'text-[11px] text-slate-400 truncate mt-0.5' }, session.preview || t('chat.noMessagesYet'))
                 ]
               ),
               h(
@@ -44,7 +46,7 @@ export default defineComponent({
                   class: 'mt-1 text-[11px] text-red-600 hover:text-red-700 font-semibold',
                   onClick: () => emit('delete', session.session_id)
                 },
-                'Delete'
+                t('chat.delete')
               )
             ]
           )

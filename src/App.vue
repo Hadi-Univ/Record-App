@@ -4,7 +4,7 @@
       href="#main-content"
       class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:bg-white focus:text-slate-900 focus:px-3 focus:py-2 focus:rounded-lg focus:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-600"
     >
-      Skip to main content
+      {{ t('nav.skipMainContent') }}
     </a>
     <!-- Top Navigation Bar (only when authenticated) -->
     <nav

@@ -46,6 +46,9 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useI18n } from '../i18n/index.js'
+
 const props = defineProps({
   currentStep: {
     type: Number,
@@ -56,13 +59,14 @@ const props = defineProps({
     default: false
   }
 })
+const { t } = useI18n()
 
-const steps = [
-  { id: 1, label: 'Upload / Record' },
-  { id: 2, label: 'Transcribe' },
-  { id: 3, label: 'Summarize' },
-  { id: 4, label: 'Visualize' }
-]
+const steps = computed(() => [
+  { id: 1, label: t('stepper.uploadRecord') },
+  { id: 2, label: t('stepper.transcribe') },
+  { id: 3, label: t('stepper.summarize') },
+  { id: 4, label: t('stepper.visualize') }
+])
 
 const isCompleted = (id) => id < props.currentStep
 const isActive = (id) => id === props.currentStep

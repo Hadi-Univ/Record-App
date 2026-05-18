@@ -137,7 +137,7 @@
         <button
           @click="selectMode ? toggleSelect(job.folder_name) : openJobDetail(job.folder_name)"
           type="button"
-          :aria-label="`${selectMode ? 'Select' : 'Open'} job ${job.folder_name}`"
+          :aria-label="selectMode ? t('history.selectJobAria', { job: job.folder_name }) : t('history.openJobAria', { job: job.folder_name })"
           class="motion-interactive w-full flex items-start justify-between p-5 text-left hover:bg-slate-50 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-inset"
         >
           <!-- Checkbox in select mode -->

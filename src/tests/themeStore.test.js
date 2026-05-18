@@ -6,12 +6,12 @@ describe('themeStore', () => {
     vi.resetModules()
   })
 
-  it('applies explicit dark preference', async () => {
+  it('applies explicit theme preference', async () => {
     const { useThemeStore } = await import('../stores/themeStore.js')
     const theme = useThemeStore()
-    theme.setPreference('dark')
-    expect(theme.state.preference).toBe('dark')
-    expect(theme.state.resolvedTheme).toBe('dark')
+    theme.setPreference('midnight-neon')
+    expect(theme.state.preference).toBe('midnight-neon')
+    expect(theme.state.resolvedTheme).toBe('midnight-neon')
   })
 
   it('resolves system preference using media query', async () => {
@@ -26,7 +26,14 @@ describe('themeStore', () => {
     const { useThemeStore } = await import('../stores/themeStore.js')
     const theme = useThemeStore()
     theme.setPreference('system')
-    expect(theme.state.resolvedTheme).toBe('dark')
+    expect(theme.state.resolvedTheme).toBe('midnight-neon')
+  })
+
+  it('maps legacy theme preference values to new themes', async () => {
+    const { useThemeStore } = await import('../stores/themeStore.js')
+    const theme = useThemeStore()
+    theme.setPreference('light')
+    expect(theme.state.preference).toBe('soft-aurora')
+    expect(theme.state.resolvedTheme).toBe('soft-aurora')
   })
 })
-

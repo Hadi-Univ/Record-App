@@ -1,4 +1,5 @@
 import { defineComponent, h, ref } from 'vue'
+import { useI18n } from '../i18n/index.js'
 
 export default defineComponent({
   name: 'ChatInput',
@@ -7,6 +8,7 @@ export default defineComponent({
   },
   emits: ['submit'],
   setup(props, { emit }) {
+    const { t } = useI18n()
     const value = ref('')
     const onSubmit = () => {
       const question = value.value.trim()
@@ -20,7 +22,7 @@ export default defineComponent({
           value: value.value,
           rows: 2,
           disabled: props.disabled,
-          placeholder: 'Ask about this recording…',
+          placeholder: t('chat.askPlaceholder'),
           class: 'flex-1 resize-none border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition disabled:opacity-50',
           onInput: (event) => {
             value.value = event.target.value
@@ -44,4 +46,3 @@ export default defineComponent({
       ])
   }
 })
-

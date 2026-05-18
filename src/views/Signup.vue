@@ -86,10 +86,14 @@
         </button>
 
         <p class="text-xs text-slate-500 text-center leading-relaxed">
-          By continuing, you agree to the
-          <router-link to="/terms-and-conditions" class="text-indigo-600 hover:text-indigo-800 font-semibold">
-            Terms &amp; Conditions
-          </router-link>.
+          {{ t('terms.consentPrefix') }}
+          <button
+            type="button"
+            @click="termsOpen = true"
+            class="text-indigo-600 hover:text-indigo-800 font-semibold"
+          >
+            {{ t('terms.title') }}
+          </button>.
         </p>
       </form>
 
@@ -108,6 +112,7 @@
         <router-link to="/login" class="text-indigo-600 hover:text-indigo-800 font-semibold">{{ t('signup.signIn') }}</router-link>
       </p>
     </div>
+    <TermsConditionsModal v-model="termsOpen" />
   </div>
 </template>
 
@@ -116,6 +121,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { registerBasic } from '../services/authService'
 import { useI18n } from '../i18n/index.js'
+import TermsConditionsModal from '../components/TermsConditionsModal.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -124,6 +130,7 @@ const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const showPassword = ref(false)
+const termsOpen = ref(false)
 const loading = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')

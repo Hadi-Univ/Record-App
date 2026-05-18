@@ -4,18 +4,20 @@
     <!-- REC badge overlay -->
     <div class="absolute top-2 left-3 flex items-center gap-1.5 pointer-events-none">
       <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-      <span class="text-[10px] font-bold tracking-widest text-white/70 uppercase">Rec</span>
+      <span class="text-[10px] font-bold tracking-widest text-white/70 uppercase">{{ t('pipeline.recBadge') }}</span>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { useI18n } from '../i18n/index.js'
 
 const props = defineProps({
   stream: { type: Object, default: null },
   active: { type: Boolean, default: false }
 })
+const { t } = useI18n()
 
 const canvasRef = ref(null)
 

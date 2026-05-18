@@ -9,17 +9,17 @@
           </svg>
         </div>
         <h1 class="text-2xl font-extrabold text-slate-900">{{ t('resetPassword.title') }}</h1>
-        <p class="text-slate-500 text-sm mt-2">Enter your new password below.</p>
+        <p class="text-slate-500 text-sm mt-2">{{ t('resetPassword.subtitle') }}</p>
       </div>
 
       <!-- Invalid / missing token -->
       <div v-if="!resetToken" class="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl p-4 text-center">
-        <p class="font-semibold mb-1">Missing reset token</p>
-        <p>This link appears to be invalid. Please request a new password reset.</p>
-        <router-link to="/forgot-password" class="mt-3 inline-block text-indigo-600 hover:text-indigo-800 font-semibold text-sm">
-          Request new link →
-        </router-link>
-      </div>
+          <p class="font-semibold mb-1">{{ t('resetPassword.missingTokenTitle') }}</p>
+          <p>{{ t('resetPassword.missingTokenBody') }}</p>
+          <router-link to="/forgot-password" class="mt-3 inline-block text-indigo-600 hover:text-indigo-800 font-semibold text-sm">
+            {{ t('resetPassword.requestNewLink') }}
+          </router-link>
+        </div>
 
       <form v-else-if="!done" @submit.prevent="handleSubmit" class="space-y-4">
         <div class="space-y-1">
@@ -76,9 +76,9 @@
         <svg class="w-10 h-10 text-emerald-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
-        <p class="text-emerald-800 font-semibold text-sm">Password reset successfully!</p>
+        <p class="text-emerald-800 font-semibold text-sm">{{ t('resetPassword.resetSuccess') }}</p>
         <router-link to="/login" class="mt-3 inline-block text-indigo-600 hover:text-indigo-800 font-semibold text-sm">
-          Sign in with your new password →
+          {{ t('resetPassword.signInWithNewPassword') }}
         </router-link>
       </div>
 
@@ -118,7 +118,7 @@ const handleSubmit = async () => {
     await resetPassword(resetToken, newPassword.value)
     done.value = true
   } catch (e) {
-    errorMsg.value = e.message || 'Password reset failed. The link may have expired.'
+    errorMsg.value = e.message || t('resetPassword.resetFailed')
   } finally {
     loading.value = false
   }

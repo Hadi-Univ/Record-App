@@ -9,6 +9,18 @@ export default {
     signedInAs: 'Masuk sebagai',
     toggleMenu: 'Tampilkan atau sembunyikan menu'
   },
+
+  theme: {
+    system: 'Sistem',
+    softAurora: 'Aurora Lembut',
+    minimalLatte: 'Latte Minimal',
+    oceanBreeze: 'Semilir Samudra',
+    sakuraLight: 'Sakura Cerah',
+    warmSunset: 'Senja Hangat',
+    midnightNeon: 'Neon Tengah Malam',
+    deepForest: 'Hutan Dalam',
+    highContrast: 'Kontras Tinggi'
+  },
   home: {
     morning: 'Selamat Pagi',
     afternoon: 'Selamat Siang',

@@ -82,7 +82,7 @@ const handleSubmit = async () => {
     await forgotPassword(email.value)
     sent.value = true
   } catch (e) {
-    errorMsg.value = e.message || 'Something went wrong. Please try again.'
+    errorMsg.value = e.message || t('forgotPassword.submitFailed')
   } finally {
     loading.value = false
   }
