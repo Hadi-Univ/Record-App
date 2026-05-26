@@ -1,6 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAppStore } from '../stores/appStore'
 import { updateSeoForRoute } from '../services/seo'
+import { isNativeOffline, validateRuntimeCapabilities } from '../services/authService'
+import { canBypassCapabilityCheck } from './offlineAccess'
 
 const routes = [
   {
@@ -69,18 +71,59 @@ const router = createRouter({
 
 const PUBLIC_PATHS = ['/login', '/signup', '/forgot-password', '/reset-password']
 
-router.beforeEach((to, from, next) => {
-  const { state } = useAppStore()
+router.beforeEach(async (to) => {
+  const store = useAppStore()
+  const { state } = store
 
   if (to.path.startsWith('/share/')) {
-    next()
-  } else if (to.meta.requiresAuth && !state.token) {
-    next('/login')
-  } else if (PUBLIC_PATHS.includes(to.path) && state.token) {
-    next('/')
-  } else {
-    next()
+    return true
   }
+  if (to.meta.requiresAuth && !state.token) {
+    return '/login'
+  }
+  if (PUBLIC_PATHS.includes(to.path) && state.token) {
+    return '/'
+  }
+  if (to.meta.requiresAuth && state.token) {
+    if (canBypassCapabilityCheck(to.path, isNativeOffline())) {
+      return true
+    }
+    if (to.path === '/') {
+      return true
+    }
+    const stale = !state.capabilities.checkedAt || (Date.now() - state.capabilities.checkedAt) > 60_000
+    if (stale) {
+      try {
+        const payload = await validateRuntimeCapabilities()
+        if (!payload?.ready) {
+          state.capabilities.error = (payload?.checks || []).filter(c => !c.ok).map(c => c.message).join(' ')
+          store.beginBackendBootstrap({
+            title: 'Preparing workspace…',
+            message: state.capabilities.error || 'Waiting for the backend to finish starting.'
+          })
+          return '/'
+        }
+      } catch (err) {
+        if (err?.status === 401 || err?.status === 403) {
+          state.capabilities.error = err.message || 'Capability validation failed.'
+          return '/login'
+        }
+        state.capabilities.error = err.message || 'Capability validation failed.'
+        store.beginBackendBootstrap({
+          title: 'Preparing workspace…',
+          message: state.capabilities.error || 'Waiting for the backend to finish starting.'
+        })
+        return '/'
+      }
+    } else if (!state.capabilities.ready) {
+      store.beginBackendBootstrap({
+        title: 'Preparing workspace…',
+        message: state.capabilities.error || 'Waiting for the backend to finish starting.'
+      })
+      return '/'
+    }
+  }
+  return true
 })
 
 router.afterEach((to) => {

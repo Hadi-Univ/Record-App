@@ -155,12 +155,52 @@
               <span class="px-2 py-0.5 rounded-md text-xs font-bold" :class="statusClass(job.status)">
                 {{ displayStatus(job.status) }}
               </span>
-              <span class="text-sm font-bold text-slate-800 font-mono">{{ job.folder_name }}</span>
+              <span class="text-[11px] font-medium text-slate-500 font-mono">{{ job.folder_name }}</span>
+            </div>
+            <div class="mt-1">
+              <div v-if="editingHistoryId === job.folder_name" class="flex items-center gap-2">
+                <input
+                  v-model="editingTitle"
+                  type="text"
+                  :disabled="Boolean(renamePending[job.folder_name])"
+                  class="w-full border border-indigo-300 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  @keydown.enter.prevent="saveRename(job)"
+                  @keydown.esc.prevent="cancelRename"
+                  @click.stop
+                />
+                <button
+                  type="button"
+                  class="text-xs font-semibold px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
+                  :disabled="Boolean(renamePending[job.folder_name])"
+                  @click.stop="saveRename(job)"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  class="text-xs font-semibold px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  :disabled="Boolean(renamePending[job.folder_name])"
+                  @click.stop="cancelRename"
+                >
+                  {{ t('history.cancel') }}
+                </button>
+              </div>
+              <p v-else class="text-sm font-bold text-slate-800 truncate">
+                {{ historyTitle(job) }}
+              </p>
             </div>
             <p v-if="job.file_name" class="text-xs text-slate-500 mt-1">{{ job.file_name }}</p>
             <p v-if="job.created_at" class="text-xs text-slate-400 mt-0.5">{{ formatDate(job.created_at) }}</p>
           </div>
           <div v-if="!selectMode" class="flex items-center gap-2 mt-1 flex-shrink-0">
+            <button
+              type="button"
+              class="motion-interactive text-xs font-semibold text-slate-600 hover:text-indigo-600 px-2 py-1 rounded-md hover:bg-indigo-50 disabled:opacity-50"
+              :disabled="Boolean(renamePending[job.folder_name])"
+              @click.stop="beginRename(job)"
+            >
+              {{ renamePending[job.folder_name] ? 'Saving…' : 'Rename' }}
+            </button>
             <button
               v-if="isPending(job)"
               @click.stop="reRunJob(job)"
@@ -188,16 +228,20 @@ import {
   summarizeJob,
   visualizeJob,
   deleteJobs,
+  renameHistory,
   GET_CACHE_TTL_MS
 } from '../services/api.js'
 import { normalizeFlashcardsPayload, normalizeChatHistoryPayload } from '../services/historyArtifacts'
+import { normalizeHistoryResponse } from '../services/historyResponse.js'
 import { useAppStore } from '../stores/appStore'
 import { isCapacitorNative } from '../services/authService'
 import { useI18n } from '../i18n/index.js'
+import { useJobStatus } from '../composables/useJobStatus.js'
 
 const router = useRouter()
 const store = useAppStore()
 const { t } = useI18n()
+const { statusClass, displayStatus, formatDate } = useJobStatus()
 
 const jobs = ref(Array.isArray(store.state.historyCache) ? [...store.state.historyCache] : [])
 const loading = ref(false)
@@ -205,6 +249,9 @@ const error = ref('')
 const nativeApp = isCapacitorNative()
 const syncingOfflineCache = ref(false)
 const reRunning = reactive({})
+const renamePending = reactive({})
+const editingHistoryId = ref('')
+const editingTitle = ref('')
 const searchQuery = ref('')
 
 // ── Selection state ──────────────────────────────────────
@@ -212,6 +259,11 @@ const selectMode = ref(false)
 const selected = reactive({})
 const deleting = ref(false)
 const showDeleteConfirm = ref(false)
+
+const syncHistoryCaches = () => {
+  store.state.historyCache = [...jobs.value]
+  store.state.historySummaryCache = normalizeHistoryResponse({ jobs: jobs.value }).summary
+}
 
 const selectedCount = computed(() => Object.values(selected).filter(Boolean).length)
 
@@ -262,7 +314,7 @@ const executeDelete = async () => {
     await deleteJobs(names)
     // Remove deleted entries from local state immediately
     jobs.value = jobs.value.filter(j => !names.includes(j.folder_name))
-    store.state.historyCache = [...jobs.value]
+    syncHistoryCaches()
     names.forEach(k => delete selected[k])
     selectMode.value = false
   } catch (err) {
@@ -277,44 +329,63 @@ const filteredJobs = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return jobs.value
   return jobs.value.filter(job =>
+    String(historyTitle(job) || '').toLowerCase().includes(q) ||
     String(job.folder_name || '').toLowerCase().includes(q) ||
     String(job.file_name || '').toLowerCase().includes(q)
   )
 })
 
-const statusClass = (status) => {
-  const map = {
-    done: 'bg-emerald-100 text-emerald-700',
-    completed: 'bg-emerald-100 text-emerald-700',
-    error: 'bg-red-100 text-red-700',
-    failed: 'bg-red-100 text-red-700',
-    running: 'bg-indigo-100 text-indigo-700',
-    processing: 'bg-indigo-100 text-indigo-700',
-    pending: 'bg-amber-100 text-amber-700'
+const historyTitle = (job) => String(job?.title || job?.display_title || job?.file_name || job?.folder_name || '').trim()
+
+const beginRename = (job) => {
+  if (!job?.folder_name) return
+  editingHistoryId.value = job.folder_name
+  editingTitle.value = historyTitle(job)
+}
+
+const cancelRename = () => {
+  editingHistoryId.value = ''
+  editingTitle.value = ''
+}
+
+const saveRename = async (job) => {
+  const historyId = job?.folder_name
+  if (!historyId) return
+  const normalized = String(editingTitle.value || '').trim().replace(/\s+/g, ' ')
+  if (!normalized) {
+    error.value = 'Title cannot be empty.'
+    return
   }
-  const normalized =
-    typeof status === 'string' ? status
-      : status?.visualize || status?.summarize || status?.transcribe || 'unknown'
-  return map[String(normalized).toLowerCase()] || 'bg-slate-100 text-slate-600'
-}
-
-const displayStatus = (status) => {
-  const normalized =
-    typeof status === 'string'
-      ? status
-      : status?.visualize || status?.summarize || status?.transcribe || 'unknown'
-  return String(normalized).toUpperCase()
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
+  const duplicate = jobs.value.some(
+    item => item?.folder_name !== historyId && historyTitle(item).toLowerCase() === normalized.toLowerCase()
+  )
+  if (duplicate) {
+    error.value = 'Another history entry already uses this title.'
+    return
+  }
+  const previousTitle = job.title
+  const previousDisplayTitle = job.display_title
+  if (normalized === historyTitle(job)) {
+    cancelRename()
+    return
+  }
+  error.value = ''
+  renamePending[historyId] = true
+  job.title = normalized
+  job.display_title = normalized
+  cancelRename()
   try {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    }).format(new Date(dateStr))
-  } catch {
-    return dateStr
+    const response = await renameHistory(historyId, normalized)
+    job.title = response?.title || normalized
+    job.display_title = response?.title || normalized
+    if (response?.updated_at) job.updated_at = response.updated_at
+    syncHistoryCaches()
+  } catch (err) {
+    job.title = previousTitle
+    job.display_title = previousDisplayTitle
+    error.value = err.message
+  } finally {
+    renamePending[historyId] = false
   }
 }
 
@@ -339,10 +410,11 @@ const loadHistory = async () => {
   error.value = ''
   try {
     const result = await getHistory({ cacheTtlMs: GET_CACHE_TTL_MS.HISTORY })
-    const normalized = Array.isArray(result) ? result : (result.jobs || result.data || [])
-    jobs.value = normalized
-    store.state.historyCache = normalized
-    await syncHistoryDetailsForOffline(normalized)
+    const normalized = normalizeHistoryResponse(result)
+    jobs.value = normalized.jobs
+    store.state.historyCache = normalized.jobs
+    store.state.historySummaryCache = normalized.summary
+    await syncHistoryDetailsForOffline(normalized.jobs)
   } catch (err) {
     const cached = Array.isArray(store.state.historyCache) ? store.state.historyCache : []
     if (cached.length) {
@@ -413,6 +485,7 @@ const syncSingleHistoryDetail = async (job) => {
     chatMessages: chatbotHistoryResult.status === 'fulfilled'
       ? normalizeChatHistoryPayload(chatbotHistoryResult.value)
       : normalizeChatHistoryPayload(existing?.chatMessages),
+    manifest: jobDetail || existing?.manifest || null,
     manifestUpdatedAt,
     updatedAt: new Date().toISOString()
   }

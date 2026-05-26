@@ -1,5 +1,5 @@
 import { useAppStore } from '../stores/appStore'
-import { requestJson, requestText } from './httpClient'
+import { requestJson, requestRaw, requestText } from './httpClient'
 
 const store = useAppStore()
 const inFlightGetRequests = new Map()
@@ -67,6 +67,17 @@ const postJson = (endpoint, payload, errorLabel, options = {}) =>
     signal: options.signal
   })
 
+const patchJson = (endpoint, payload, errorLabel, options = {}) =>
+  requestJson(`${store.getBaseUrl()}${endpoint}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+    errorLabel,
+    timeoutMs: options.timeoutMs ?? 15000,
+    retries: options.retries ?? 0,
+    signal: options.signal
+  })
+
 const fetchGetJsonWithDedup = async (cacheKey, endpoint, errorLabel, options = {}) => {
   const ttlMs = Number.isFinite(options.cacheTtlMs) ? options.cacheTtlMs : 0
   if (ttlMs > 0 && responseCache.has(cacheKey)) {
@@ -113,11 +124,43 @@ const buildDownloadEndpoint = (folderName, fileType, langPair = null) => {
 const buildShareReadEndpoint = (shareId, token, sig) =>
   `/api/v1/share/${encodeURIComponent(shareId)}?token=${encodeURIComponent(token)}&sig=${encodeURIComponent(sig)}`
 
+const DOWNLOAD_FILENAME_FALLBACKS = {
+  audio: 'audio',
+  summary_txt: 'summary.txt',
+  summary_html: 'summary.html',
+  image: 'visualization.png',
+  transcript_txt: 'transcript.txt',
+  transcript_json: 'transcript.json',
+  flashcards_json: 'flashcards.json'
+}
+
+const extractFilenameFromDisposition = (contentDisposition, fallback) => {
+  const utf8Match = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match?.[1]) return decodeURIComponent(utf8Match[1])
+  const quotedMatch = contentDisposition?.match(/filename="([^"]+)"/i)
+  if (quotedMatch?.[1]) return quotedMatch[1]
+  const plainMatch = contentDisposition?.match(/filename=([^;]+)/i)
+  if (plainMatch?.[1]) return plainMatch[1].trim()
+  return fallback
+}
+
+const triggerBlobDownload = (blob, filename) => {
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = filename
+  link.style.display = 'none'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+}
+
 export async function fetchDownloadText(folderName, fileType, options = {}) {
   const endpoint = buildDownloadEndpoint(folderName, fileType, options.langPair || null)
-  return requestText(store.getAuthUrl(endpoint), {
+  return requestText(`${store.getBaseUrl()}${endpoint}`, {
     method: 'GET',
-    headers: { Accept: 'text/plain' },
+    headers: buildAuthHeaders({ Accept: 'text/plain' }),
     errorLabel: options.errorLabel || 'Download failed',
     timeoutMs: options.timeoutMs ?? 15000,
     retries: options.retries ?? 1,
@@ -127,14 +170,44 @@ export async function fetchDownloadText(folderName, fileType, options = {}) {
 
 export async function fetchDownloadJson(folderName, fileType, options = {}) {
   const endpoint = buildDownloadEndpoint(folderName, fileType, options.langPair || null)
-  return requestJson(store.getAuthUrl(endpoint), {
+  return requestJson(`${store.getBaseUrl()}${endpoint}`, {
     method: 'GET',
-    headers: { Accept: 'application/json' },
+    headers: buildAuthHeaders({ Accept: 'application/json' }),
     errorLabel: options.errorLabel || 'Download failed',
     timeoutMs: options.timeoutMs ?? 15000,
     retries: options.retries ?? 1,
     signal: options.signal
   })
+}
+
+export async function createDownloadObjectUrl(folderName, fileType, options = {}) {
+  const endpoint = buildDownloadEndpoint(folderName, fileType, options.langPair || null)
+  const response = await requestRaw(`${store.getBaseUrl()}${endpoint}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    errorLabel: options.errorLabel || 'Download failed',
+    timeoutMs: options.timeoutMs ?? 30000,
+    retries: options.retries ?? 0,
+    signal: options.signal
+  })
+  const blob = await response.blob()
+  return URL.createObjectURL(blob)
+}
+
+export async function downloadArtifact(folderName, fileType, options = {}) {
+  const endpoint = buildDownloadEndpoint(folderName, fileType, options.langPair || null)
+  const response = await requestRaw(`${store.getBaseUrl()}${endpoint}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    errorLabel: options.errorLabel || 'Download failed',
+    timeoutMs: options.timeoutMs ?? 30000,
+    retries: options.retries ?? 0,
+    signal: options.signal
+  })
+  const blob = await response.blob()
+  const fallbackName = options.filename || DOWNLOAD_FILENAME_FALLBACKS[fileType] || `${fileType}`
+  const filename = extractFilenameFromDisposition(response.headers.get('content-disposition'), fallbackName)
+  triggerBlobDownload(blob, filename)
 }
 
 /** Files larger than this threshold are sent via the chunked-upload API. */
@@ -150,7 +223,6 @@ export const CHUNK_SIZE = 2 * 1024 * 1024 // 2 MB
 export async function uploadAndTranscribe(file, options = {}) {
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('google_token', store.state.token)
 
   return requestJson(`${store.getBaseUrl()}/api/v1/transcribe`, {
     method: 'POST',
@@ -168,7 +240,6 @@ export async function uploadAndTranscribe(file, options = {}) {
  */
 export async function summarizeJob(folderName, fileName, options = {}) {
   const result = await postJson('/api/v1/summarize', {
-    google_token: store.state.token,
     folder_name: folderName,
     file_name: fileName,
     ...getModelPayload()
@@ -183,7 +254,6 @@ export async function summarizeJob(folderName, fileName, options = {}) {
  */
 export async function visualizeJob(folderName, fileName, options = {}) {
   const result = await postJson('/api/v1/visualize', {
-    google_token: store.state.token,
     folder_name: folderName,
     file_name: fileName,
     ...getModelPayload()
@@ -226,7 +296,7 @@ export async function getHistory(options = {}) {
  */
 export function getDownloadUrl(folderName, fileType, langPair = null) {
   const endpoint = buildDownloadEndpoint(folderName, fileType, langPair)
-  return store.getAuthUrl(endpoint)
+  return `${store.getBaseUrl()}${endpoint}`
 }
 
 /**
@@ -235,7 +305,6 @@ export function getDownloadUrl(folderName, fileType, langPair = null) {
  */
 export async function initChunkedUpload(filename, totalChunks, fileSize, transcribeLang, options = {}) {
   return postJson('/api/v1/upload/init', {
-    google_token: store.state.token,
     filename,
     total_chunks: totalChunks,
     file_size: fileSize,
@@ -249,7 +318,6 @@ export async function initChunkedUpload(filename, totalChunks, fileSize, transcr
  */
 export async function uploadChunk(uploadId, chunkIndex, chunkBlob, options = {}) {
   const formData = new FormData()
-  formData.append('google_token', store.state.token)
   formData.append('upload_id', uploadId)
   formData.append('chunk_index', String(chunkIndex))
   formData.append('file', chunkBlob, `chunk_${chunkIndex}`)
@@ -284,7 +352,6 @@ export async function getUploadStatus(uploadId, options = {}) {
  */
 export async function completeChunkedUpload(uploadId, transcribeLang, options = {}) {
   const result = await postJson('/api/v1/upload/complete', {
-    google_token: store.state.token,
     upload_id: uploadId,
     transcribe_lang: transcribeLang || undefined
   }, 'Upload complete failed', options)
@@ -298,7 +365,6 @@ export async function completeChunkedUpload(uploadId, transcribeLang, options = 
  */
 export async function retranscribeJob(folderName, fileName, transcribeLang, options = {}) {
   const result = await postJson('/api/v1/retranscribe', {
-    google_token: store.state.token,
     folder_name: folderName,
     file_name: fileName,
     transcribe_lang: transcribeLang || undefined
@@ -314,10 +380,17 @@ export async function retranscribeJob(folderName, fileName, transcribeLang, opti
  */
 export async function deleteJobs(folderNames, options = {}) {
   const result = await postJson('/api/v1/history/delete', {
-    google_token: store.state.token,
     folder_names: folderNames
   }, 'Delete failed', options)
   invalidateGetCaches(CACHE_KEY_PREFIX.HISTORY)
+  return result
+}
+
+export async function renameHistory(historyId, title, options = {}) {
+  const result = await patchJson(`/api/v1/history/${encodeURIComponent(historyId)}/rename`, {
+    title
+  }, 'Rename failed', options)
+  invalidateGetCaches(CACHE_KEY_PREFIX.HISTORY, `${CACHE_KEY_PREFIX.JOB}${historyId}`)
   return result
 }
 
@@ -328,7 +401,6 @@ export async function deleteJobs(folderNames, options = {}) {
  */
 export async function translateJob(folderName, fileName, sourceLang, targetLang, files, options = {}) {
   const result = await postJson('/api/v1/translate', {
-    google_token: store.state.token,
     folder_name: folderName,
     file_name: fileName,
     source_language: sourceLang,
@@ -346,7 +418,6 @@ export async function translateJob(folderName, fileName, sourceLang, targetLang,
  */
 export async function saveTranscript(folderName, fileName, transcriptData, options = {}) {
   const result = await postJson('/api/v1/transcript/save', {
-    google_token: store.state.token,
     folder_name: folderName,
     file_name: fileName,
     transcript_data: Array.isArray(transcriptData) ? transcriptData : []
@@ -364,7 +435,6 @@ export async function saveTranscript(folderName, fileName, transcriptData, optio
  */
 export async function generateFlashcards(folderName, fileName, count = 10, options = {}) {
   return postJson('/api/v1/flashcards', {
-    google_token: store.state.token,
     folder_name: folderName,
     file_name: fileName,
     ...getModelPayload(),
@@ -382,7 +452,6 @@ export async function generateFlashcards(folderName, fileName, count = 10, optio
  */
 export async function sendChatMessage(folderName, fileName, question, history = [], options = {}) {
   return postJson('/api/v1/chat', {
-    google_token: store.state.token,
     folder_name: folderName,
     file_name: fileName,
     question,
@@ -393,10 +462,20 @@ export async function sendChatMessage(folderName, fileName, question, history = 
 
 export async function createShareLink(folderName, options = {}) {
   return postJson('/api/v1/share/create', {
-    google_token: store.state.token,
     folder_name: folderName,
     expires_in_hours: options.expiresInHours
   }, 'Share creation failed', options)
+}
+
+export async function getProcessingLockStatus(options = {}) {
+  return requestJson(`${store.getBaseUrl()}/api/v1/processing-lock/status`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    errorLabel: 'Processing lock status failed',
+    timeoutMs: options.timeoutMs ?? 8000,
+    retries: options.retries ?? 0,
+    signal: options.signal
+  })
 }
 
 export async function revokeShareLink(shareId, options = {}) {

@@ -52,6 +52,7 @@
       :config="configStore.state.config || {}"
       @save="saveRuntimePatch"
     />
+    <SttProviderSettings v-if="showApiRuntimeConfig" />
     <ThemeSettings />
 
     <!-- LLM Provider Settings -->
@@ -346,6 +347,37 @@
       </div>
     </div>
 
+    <div
+      v-if="store.state.authMethod === 'basic'"
+      class="bg-white rounded-2xl shadow-sm border border-rose-200 p-6 space-y-4"
+    >
+      <h2 class="text-base font-bold text-rose-700">Delete Account</h2>
+      <p class="text-sm text-slate-500">This action is permanent. Enter your password to confirm account deletion.</p>
+      <form @submit.prevent="handleDeleteAccount" class="space-y-3">
+        <input
+          v-model="deletePassword"
+          type="password"
+          required
+          autocomplete="current-password"
+          placeholder="Confirm your password"
+          class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+        />
+        <button
+          type="submit"
+          :disabled="deletingAccount"
+          class="w-full md:w-auto bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2.5 rounded-xl transition text-sm disabled:opacity-50"
+        >
+          {{ deletingAccount ? 'Deleting...' : 'Delete account permanently' }}
+        </button>
+      </form>
+      <div
+        v-if="deleteAccountStatus"
+        class="rounded-xl p-3 text-sm font-semibold bg-red-50 text-red-700 border border-red-200"
+      >
+        {{ deleteAccountStatus.message }}
+      </div>
+    </div>
+
     <!-- Creators -->
     <div data-reveal data-reveal-delay="200" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
       <h2 class="text-base font-bold text-slate-900">{{ t('settings.creatorsTitle') }}</h2>
@@ -439,7 +471,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/appStore'
-import { changePassword, updateBasicProfile } from '../services/authService'
+import { changePassword, deleteAccount, updateBasicProfile } from '../services/authService'
 import { createRequestCanceller, requestJson } from '../services/httpClient'
 import { useI18n } from '../i18n/index.js'
 import { useConfigStore } from '../stores/configStore'
@@ -447,6 +479,7 @@ import ApiSettingsPanel from '../components/settings/ApiSettingsPanel.vue'
 import AiProviderSettings from '../components/settings/AiProviderSettings.vue'
 import UploadSettings from '../components/settings/UploadSettings.vue'
 import PerformanceSettings from '../components/settings/PerformanceSettings.vue'
+import SttProviderSettings from '../components/settings/SttProviderSettings.vue'
 import ThemeSettings from '../components/settings/ThemeSettings.vue'
 import TermsConditionsModal from '../components/TermsConditionsModal.vue'
 
@@ -481,6 +514,9 @@ const profileEmail = ref(store.state.user?.email || '')
 const profileUsername = ref(store.state.user?.username || '')
 const updatingProfile = ref(false)
 const profileStatus = ref(null)
+const deletePassword = ref('')
+const deletingAccount = ref(false)
+const deleteAccountStatus = ref(null)
 
 const changePasswordMismatch = computed(
   () => confirmNewPassword.value.length > 0 && newPassword.value !== confirmNewPassword.value
@@ -547,6 +583,24 @@ const showApiRuntimeConfig = computed(() => store.state.authMethod === 'api')
 const handleLogout = () => {
   store.logout()
   router.push('/login')
+}
+
+const handleDeleteAccount = async () => {
+  if (!deletePassword.value) {
+    deleteAccountStatus.value = { ok: false, message: 'Password confirmation is required.' }
+    return
+  }
+  deletingAccount.value = true
+  deleteAccountStatus.value = null
+  try {
+    await deleteAccount(deletePassword.value)
+    store.logout()
+    router.push('/login')
+  } catch (err) {
+    deleteAccountStatus.value = { ok: false, message: err.message || 'Failed to delete account.' }
+  } finally {
+    deletingAccount.value = false
+  }
 }
 
 const readContributorsCache = () => {
@@ -669,10 +723,24 @@ const testConnection = async () => {
 const loadRuntimeConfig = async () => {
   if (!showApiRuntimeConfig.value) return
   await configStore.loadConfig()
+  const runtimeConfig = configStore.state.config || {}
+  if (runtimeConfig.llm_provider) {
+    settings.provider = runtimeConfig.llm_provider
+  }
+  settings.model = runtimeConfig.llm_model || ''
 }
 
 const saveRuntimePatch = async (patch) => {
   await configStore.patchConfig(patch)
+  if (Object.prototype.hasOwnProperty.call(patch, 'llm_provider') && patch.llm_provider) {
+    settings.provider = patch.llm_provider
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'llm_model')) {
+    settings.model = patch.llm_model || ''
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'llm_api_key') && patch.llm_api_key) {
+    settings.apiKey = patch.llm_api_key
+  }
 }
 
 const resetRuntimeConfig = async () => {

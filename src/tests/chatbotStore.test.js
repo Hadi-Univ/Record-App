@@ -11,6 +11,17 @@ vi.mock('../services/chatbotApi.js', () => ({
   deleteChatbotSession: vi.fn().mockResolvedValue({ deleted: true })
 }))
 
+vi.mock('../composables/useNotifications', () => ({
+  useNotifications: () => ({
+    notifyInfo: vi.fn(),
+    notifyWarning: vi.fn(),
+    notifyError: vi.fn(),
+    dismissNotification: vi.fn(),
+    clearNotifications: vi.fn(),
+    notifications: []
+  })
+}))
+
 describe('chatbotStore', () => {
   beforeEach(() => {
     vi.resetModules()
@@ -24,5 +35,33 @@ describe('chatbotStore', () => {
     expect(state.sessions.length).toBe(1)
     expect(state.messages.length).toBe(1)
   })
-})
 
+  it('keeps prior chat stable and sets security warning when unsafe prompt is blocked', async () => {
+    const chatbotApi = await import('../services/chatbotApi.js')
+    chatbotApi.sendChatbotMessage.mockRejectedValueOnce({
+      status: 422,
+      message: 'Chat request failed',
+      payload: {
+        detail: {
+          success: false,
+          error: {
+            type: 'prompt_injection_detected',
+            message: 'Unsafe instruction detected'
+          }
+        }
+      }
+    })
+
+    const { useChatbotStore } = await import('../stores/chatbotStore.js')
+    const store = useChatbotStore()
+    const state = store.ensureHistoryState('job_1')
+    state.messages = [{ message_id: 'm-1', role: 'assistant', content: 'existing' }]
+
+    await expect(store.sendMessage('job_1', 'unsafe prompt')).rejects.toBeTruthy()
+
+    expect(state.sending).toBe(false)
+    expect(state.messages).toEqual([{ message_id: 'm-1', role: 'assistant', content: 'existing' }])
+    expect(state.securityWarning).toContain('Potential unsafe prompt detected')
+    expect(state.error).toBe('')
+  })
+})

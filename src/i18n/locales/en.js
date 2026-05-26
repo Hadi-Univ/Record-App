@@ -38,6 +38,10 @@ export default {
     recentJobs: 'Recent Jobs',
     noJobsYet: 'No jobs yet',
     startFirstJob: 'Start your first pipeline to see results here.',
+    preparingWorkspaceTitle: 'Preparing your workspace…',
+    preparingWorkspaceDescription: 'Please wait while the backend starts and loads your dashboard.',
+    preparingWorkspaceProgress: 'Checking backend availability ({attempt}/{maxAttempts})…',
+    backendStillPreparing: 'The backend is still preparing. Please try again in a moment.',
     open: 'Open',
     viewAll: 'View all →',
     openJobAria: 'Open job {job}'
@@ -174,7 +178,8 @@ export default {
     translate: 'Translate',
     translating: 'Translating…',
     downloadTranslation: 'Download',
-    availableIn: 'Available in'
+    availableIn: 'Available in',
+    offlineDetailMode: 'Offline mode: displaying saved job detail from this device.'
   },
   settings: {
     title: 'Settings',

@@ -6,6 +6,10 @@ import {
   createChatbotSession,
   deleteChatbotSession
 } from '../services/chatbotApi'
+import { normalizeApiError, getSecurityMessage } from '../services/errorHandler'
+import { useNotifications } from '../composables/useNotifications'
+
+const { notifyWarning, notifyError } = useNotifications()
 
 const state = reactive({
   byHistory: {}
@@ -21,7 +25,8 @@ const ensureHistoryState = (historyId) => {
       loadingSessions: false,
       loadingMessages: false,
       sending: false,
-      error: ''
+      error: '',
+      securityWarning: ''
     }
   }
   return state.byHistory[key]
@@ -30,6 +35,7 @@ const ensureHistoryState = (historyId) => {
 const setActiveSession = async (historyId, sessionId) => {
   const bucket = ensureHistoryState(historyId)
   bucket.activeSessionId = sessionId || ''
+  bucket.securityWarning = ''
   if (!bucket.activeSessionId) {
     bucket.messages = []
     return
@@ -50,6 +56,7 @@ const loadSessions = async (historyId, { autoSelect = true } = {}) => {
   const bucket = ensureHistoryState(historyId)
   bucket.loadingSessions = true
   bucket.error = ''
+  bucket.securityWarning = ''
   try {
     const payload = await fetchChatbotSessions(historyId)
     bucket.sessions = Array.isArray(payload.sessions) ? payload.sessions : []
@@ -78,6 +85,7 @@ const sendMessage = async (historyId, question, options = {}) => {
   bucket.messages = [...bucket.messages, optimisticMessage]
   bucket.sending = true
   bucket.error = ''
+  bucket.securityWarning = ''
   try {
     const response = await sendChatbotMessage(historyId, {
       question: trimmed,
@@ -91,7 +99,20 @@ const sendMessage = async (historyId, question, options = {}) => {
     return response
   } catch (error) {
     bucket.messages = bucket.messages.filter((item) => item.message_id !== optimisticMessage.message_id)
-    bucket.error = error.message || 'Chat request failed.'
+    const normalized = normalizeApiError({
+      payload: error?.payload || error?.detail || null,
+      status: Number(error?.status || 0),
+      fallback: 'Chat request failed.',
+      originalMessage: error?.message || '',
+    })
+    if (normalized.kind === 'security') {
+      bucket.securityWarning = getSecurityMessage()
+      bucket.error = ''
+      notifyWarning(bucket.securityWarning)
+    } else {
+      bucket.error = normalized.message || 'Chat request failed.'
+      notifyError(bucket.error, { timeoutMs: 5000 })
+    }
     throw error
   } finally {
     bucket.sending = false

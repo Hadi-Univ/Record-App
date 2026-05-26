@@ -18,7 +18,6 @@ export async function sendChatbotMessage(historyId, payload, options = {}) {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({
-      google_token: store.state.token,
       session_id: payload.sessionId || undefined,
       question: payload.question,
       provider: payload.provider || store.state.settings.provider,
@@ -49,7 +48,6 @@ export async function createChatbotSession(historyId, payload = {}, options = {}
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({
-      google_token: store.state.token,
       title: payload.title || undefined
     }),
     timeoutMs: options.timeoutMs ?? 15000,
