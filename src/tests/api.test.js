@@ -1,15 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-
-// ---------- helpers ----------
-
-function makeResponse(body, ok = true, status = 200) {
-  return {
-    ok,
-    status,
-    json: vi.fn().mockResolvedValue(body),
-    text: vi.fn().mockResolvedValue(typeof body === 'string' ? body : JSON.stringify(body))
-  }
-}
+import { makeResponse, mockFetchResponse } from './mocks/http.js'
 
 // Mock store module so api.js picks up a controllable store singleton.
 // model and apiKey are empty by default to test the "omit when falsy" branch.
@@ -29,12 +19,6 @@ vi.mock('../stores/appStore.js', () => {
       getBaseUrl: () => {
         const url = state.settings.apiUrl.trim()
         return url.endsWith('/') ? url.slice(0, -1) : url
-      },
-      getAuthUrl: (endpoint) => {
-        const base = state.settings.apiUrl.trim().replace(/\/$/, '')
-        const token = encodeURIComponent(state.token)
-        const sep = endpoint.includes('?') ? '&' : '?'
-        return `${base}${endpoint}${sep}google_token=${token}`
       }
     })
   }
@@ -45,7 +29,7 @@ const api = await import('../services/api.js')
 describe('uploadAndTranscribe', () => {
   it('POSTs to /api/v1/transcribe and returns JSON on success', async () => {
     const result = { folder_name: 'job_1', transcript: 'Hello world' }
-    global.fetch = vi.fn().mockResolvedValue(makeResponse(result))
+    mockFetchResponse(result)
 
     const file = new File(['audio'], 'test.mp3', { type: 'audio/mpeg' })
     const data = await api.uploadAndTranscribe(file)
@@ -59,7 +43,7 @@ describe('uploadAndTranscribe', () => {
   })
 
   it('throws an error with status code when response is not ok', async () => {
-    global.fetch = vi.fn().mockResolvedValue(makeResponse('Unauthorized', false, 401))
+    mockFetchResponse('Unauthorized', false, 401)
 
     const file = new File(['audio'], 'test.mp3', { type: 'audio/mpeg' })
     await expect(api.uploadAndTranscribe(file)).rejects.toThrow('Transcription failed (401)')
@@ -69,7 +53,7 @@ describe('uploadAndTranscribe', () => {
 describe('summarizeJob', () => {
   it('POSTs to /api/v1/summarize with correct JSON body', async () => {
     const result = { summary: 'A summary', keywords: ['key1', 'key2'] }
-    global.fetch = vi.fn().mockResolvedValue(makeResponse(result))
+    mockFetchResponse(result)
 
     const data = await api.summarizeJob('job_1', 'audio.mp3')
 
@@ -78,7 +62,6 @@ describe('summarizeJob', () => {
     expect(url).toBe('https://api.example.com/api/v1/summarize')
     expect(opts.method).toBe('POST')
     const body = JSON.parse(opts.body)
-    expect(body.google_token).toBe('test-token')
     expect(body.folder_name).toBe('job_1')
     expect(body.file_name).toBe('audio.mp3')
     expect(body.provider).toBe('ollama')
@@ -86,7 +69,7 @@ describe('summarizeJob', () => {
   })
 
   it('omits model and api_key when they are empty strings', async () => {
-    global.fetch = vi.fn().mockResolvedValue(makeResponse({ summary: '' }))
+    mockFetchResponse({ summary: '' })
 
     await api.summarizeJob('job_1', 'audio.mp3')
 
@@ -96,7 +79,7 @@ describe('summarizeJob', () => {
   })
 
   it('throws an error on non-ok response', async () => {
-    global.fetch = vi.fn().mockResolvedValue(makeResponse('Server error', false, 500))
+    mockFetchResponse('Server error', false, 500)
     await expect(api.summarizeJob('job_1', 'audio.mp3')).rejects.toThrow('Summarization failed (500)')
   })
 })
@@ -185,10 +168,9 @@ describe('getHistory', () => {
 })
 
 describe('getDownloadUrl', () => {
-  it('builds a download URL with google_token for a given folder and file type', async () => {
+  it('builds a download URL for a given folder and file type', async () => {
     const url = api.getDownloadUrl('job_1', 'transcript_txt')
     expect(url).toContain('/api/v1/download/job_1/transcript_txt')
-    expect(url).toContain('google_token=test-token')
   })
 
   it('URL-encodes special characters in folder names', async () => {
@@ -201,7 +183,6 @@ describe('getDownloadUrl', () => {
     const url = api.getDownloadUrl('job_1', 'summary_txt', 'indonesian_to_english')
     expect(url).toContain('/api/v1/download/job_1/summary_txt')
     expect(url).toContain('lang_pair=indonesian_to_english')
-    expect(url).toContain('google_token=test-token')
   })
 
   it('does not append lang_pair when null', async () => {
@@ -222,7 +203,6 @@ describe('initChunkedUpload', () => {
     expect(url).toBe('https://api.example.com/api/v1/upload/init')
     expect(opts.method).toBe('POST')
     const body = JSON.parse(opts.body)
-    expect(body.google_token).toBe('test-token')
     expect(body.filename).toBe('audio.mp3')
     expect(body.total_chunks).toBe(5)
     expect(body.file_size).toBe(10485760)
@@ -297,7 +277,6 @@ describe('completeChunkedUpload', () => {
     expect(url).toBe('https://api.example.com/api/v1/upload/complete')
     expect(opts.method).toBe('POST')
     const body = JSON.parse(opts.body)
-    expect(body.google_token).toBe('test-token')
     expect(body.upload_id).toBe('up_abc')
     expect(body.transcribe_lang).toBe('en')
     expect(data).toEqual(result)
@@ -328,7 +307,6 @@ describe('deleteJobs', () => {
     expect(url).toBe('https://api.example.com/api/v1/history/delete')
     expect(opts.method).toBe('POST')
     const body = JSON.parse(opts.body)
-    expect(body.google_token).toBe('test-token')
     expect(body.folder_names).toEqual(['job_1', 'job_2'])
     expect(data).toEqual(result)
   })
@@ -358,7 +336,6 @@ describe('retranscribeJob', () => {
     expect(url).toBe('https://api.example.com/api/v1/retranscribe')
     expect(opts.method).toBe('POST')
     const body = JSON.parse(opts.body)
-    expect(body.google_token).toBe('test-token')
     expect(body.folder_name).toBe('job_1')
     expect(body.file_name).toBe('audio')
     expect(body.transcribe_lang).toBe('en')
@@ -389,7 +366,6 @@ describe('translateJob', () => {
     expect(url).toBe('https://api.example.com/api/v1/translate')
     expect(opts.method).toBe('POST')
     const body = JSON.parse(opts.body)
-    expect(body.google_token).toBe('test-token')
     expect(body.folder_name).toBe('job_1')
     expect(body.file_name).toBe('audio')
     expect(body.source_language).toBe('Indonesian')
@@ -426,7 +402,6 @@ describe('saveTranscript', () => {
     expect(url).toBe('https://api.example.com/api/v1/transcript/save')
     expect(opts.method).toBe('POST')
     const body = JSON.parse(opts.body)
-    expect(body.google_token).toBe('test-token')
     expect(body.folder_name).toBe('job_1')
     expect(body.file_name).toBe('audio')
     expect(body.transcript_data).toEqual(transcriptData)
@@ -457,7 +432,6 @@ describe('generateFlashcards', () => {
     expect(url).toBe('https://api.example.com/api/v1/flashcards')
     expect(opts.method).toBe('POST')
     const body = JSON.parse(opts.body)
-    expect(body.google_token).toBe('test-token')
     expect(body.folder_name).toBe('job_1')
     expect(body.file_name).toBe('audio')
     expect(body.count).toBe(5)
@@ -498,7 +472,6 @@ describe('sendChatMessage', () => {
     expect(url).toBe('https://api.example.com/api/v1/chat')
     expect(opts.method).toBe('POST')
     const body = JSON.parse(opts.body)
-    expect(body.google_token).toBe('test-token')
     expect(body.folder_name).toBe('job_1')
     expect(body.file_name).toBe('audio')
     expect(body.question).toBe('What is discussed?')
@@ -537,7 +510,6 @@ describe('share APIs', () => {
     expect(opts.method).toBe('POST')
     const body = JSON.parse(opts.body)
     expect(body.folder_name).toBe('job_1')
-    expect(body.google_token).toBe('test-token')
     expect(data).toEqual(result)
   })
 
@@ -572,5 +544,24 @@ describe('fetchHistoryArtifactsParallel', () => {
     expect(result.summary_txt.status).toBe('fulfilled')
     expect(result.transcript_json.status).toBe('fulfilled')
     expect(progress.at(-1)).toBe(100)
+  })
+})
+
+describe('renameHistory', () => {
+  it('PATCHes /api/v1/history/{historyId}/rename with title payload', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse({ history_id: 'job_1', title: 'Meeting With Client A' }))
+    const data = await api.renameHistory('job_1', 'Meeting With Client A')
+    const [url, opts] = global.fetch.mock.calls[0]
+    expect(url).toBe('https://api.example.com/api/v1/history/job_1/rename')
+    expect(opts.method).toBe('PATCH')
+    expect(JSON.parse(opts.body)).toEqual({ title: 'Meeting With Client A' })
+    expect(data.title).toBe('Meeting With Client A')
+  })
+
+  it('URL-encodes special characters in history id', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse({}))
+    await api.renameHistory('job/with spaces', 'Meeting')
+    const [url] = global.fetch.mock.calls[0]
+    expect(url).toContain('/api/v1/history/job%2Fwith%20spaces/rename')
   })
 })

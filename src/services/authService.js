@@ -2,12 +2,21 @@ import { useAppStore } from '../stores/appStore'
 import { requestJson } from './httpClient'
 import { env } from '../config/env'
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
 /**
  * Returns true when running inside a Capacitor native app (Android / iOS).
  * Falls back to false in a regular browser.
  */
 export function isCapacitorNative() {
   return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true
+}
+
+/**
+ * Returns true when running inside a native app and the device is currently offline.
+ */
+export function isNativeOffline() {
+  return isCapacitorNative() && typeof navigator !== 'undefined' && navigator.onLine === false
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +186,21 @@ export async function changePassword(currentPassword, newPassword) {
   })
 }
 
+export async function deleteAccount(password) {
+  const store = useAppStore()
+  const url = `${store.getBaseUrl()}/api/v1/auth/delete-account`
+  await requestJson(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${store.state.token}`
+    },
+    body: JSON.stringify({ password }),
+    timeoutMs: 15000
+  })
+}
+
 /**
  * Update profile fields for the currently authenticated basic-auth user.
  * Supports email and username updates.
@@ -231,4 +255,78 @@ export async function refreshAccessToken() {
   store.state.token = newToken
   store.state.refreshToken = data.refresh_token || ''
   store.state.tokenExpiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : 0
+}
+
+export async function validateRuntimeCapabilities() {
+  const store = useAppStore()
+  const url = `${store.getBaseUrl()}/api/v1/capabilities/validate`
+  let data
+  try {
+    data = await requestJson(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: store.state.token ? `Bearer ${store.state.token}` : undefined
+      },
+      timeoutMs: 10000
+    })
+  } catch (error) {
+    if (error?.status === 401 || error?.status === 403) {
+      store.logout()
+      store.state.capabilities.error = error?.message || 'Authentication failed. Please sign in again.'
+    }
+    throw error
+  }
+  store.state.capabilities.ready = Boolean(data?.ready)
+  store.state.capabilities.checkedAt = Date.now()
+  store.state.capabilities.error = data?.ready ? '' : (data?.checks || []).filter(c => !c.ok).map(c => c.message).join(' ')
+  store.state.capabilities.checks = Array.isArray(data?.checks) ? data.checks : []
+  store.state.capabilities.deviceProfile = data?.device_profile || null
+  if (data?.processing_lock) {
+    store.state.processingLock = {
+      locked: Boolean(data.processing_lock.locked),
+      job_type: data.processing_lock.job_type || null
+    }
+  }
+  return data
+}
+
+export async function waitForRuntimeCapabilities({
+  maxAttempts = 20,
+  intervalMs = 1500,
+  onAttempt = null
+} = {}) {
+  let lastPayload = null
+  let lastError = null
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (typeof onAttempt === 'function') {
+      onAttempt({ attempt, maxAttempts })
+    }
+
+    try {
+      const payload = await validateRuntimeCapabilities()
+      lastPayload = payload
+      if (payload?.ready) {
+        return payload
+      }
+    } catch (error) {
+      lastError = error
+      if (error?.status === 401 || error?.status === 403) {
+        throw error
+      }
+    }
+
+    if (attempt < maxAttempts) {
+      await sleep(intervalMs)
+    }
+  }
+
+  if (lastPayload) {
+    return lastPayload
+  }
+  if (lastError) {
+    throw lastError
+  }
+  return { ready: false }
 }

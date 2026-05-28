@@ -38,6 +38,10 @@ export default {
     recentJobs: 'المهام الأخيرة',
     noJobsYet: 'لا توجد مهام حتى الآن',
     startFirstJob: 'ابدأ أول خط معالجة لرؤية النتائج هنا.',
+    preparingWorkspaceTitle: 'Preparing your workspace…',
+    preparingWorkspaceDescription: 'Please wait while the backend starts and loads your dashboard.',
+    preparingWorkspaceProgress: 'Checking backend availability ({attempt}/{maxAttempts})…',
+    backendStillPreparing: 'The backend is still preparing. Please try again in a moment.',
     open: 'فتح'
   },
   pipeline: {

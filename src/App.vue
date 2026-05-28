@@ -69,7 +69,13 @@
 
     <!-- Padding for mobile bottom nav -->
     <div v-if="store.state.token" class="md:hidden h-16" />
+    <BlockingStatusModal
+      :open="showHomeBootstrapModal"
+      :title="store.state.backendBootstrap.title || t('home.preparingWorkspaceTitle')"
+      :message="store.state.backendBootstrap.message || t('home.preparingWorkspaceDescription')"
+    />
     <PipelineModal />
+    <NotificationContainer />
   </div>
 </template>
 
@@ -78,9 +84,12 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/appStore'
 import { refreshAccessToken } from './services/authService'
+import { getProcessingLockStatus } from './services/api'
 import NavIcon from './components/NavIcon.vue'
 import ErrorBoundary from './components/ErrorBoundary.vue'
+import BlockingStatusModal from './components/BlockingStatusModal.vue'
 import PipelineModal from './components/PipelineModal.vue'
+import NotificationContainer from './components/notifications/NotificationContainer.vue'
 import { useI18n } from './i18n/index.js'
 import { useScrollReveal } from './composables/useScrollReveal'
 
@@ -91,6 +100,10 @@ const transitionName = ref('slide-left')
 const isBackNavigation = ref(false)
 const { t } = useI18n()
 const { observeReveals, disconnectReveals } = useScrollReveal()
+let processingLockTimer = null
+const showHomeBootstrapModal = computed(() =>
+  Boolean(store.state.token && route.path === '/' && store.state.backendBootstrap?.active)
+)
 
 const isHistoryDetailPath = (path) => /^\/history\/[^/]+$/.test(path || '')
 const handlePopstate = () => {
@@ -135,6 +148,19 @@ onMounted(async () => {
   await router.isReady()
   await nextTick()
   observeReveals(document)
+
+  processingLockTimer = setInterval(async () => {
+    if (!store.state.token) return
+    try {
+      const status = await getProcessingLockStatus({ timeoutMs: 3000, retries: 0 })
+      store.state.processingLock = {
+        locked: Boolean(status?.locked),
+        job_type: status?.job_type || null
+      }
+    } catch {
+      // best-effort polling only
+    }
+  }, 5000)
 })
 
 watch(() => route.fullPath, () => {
@@ -144,6 +170,7 @@ watch(() => route.fullPath, () => {
 onBeforeUnmount(() => {
   window.removeEventListener('popstate', handlePopstate)
   disconnectReveals()
+  clearInterval(processingLockTimer)
 })
 
 const navLinks = computed(() => [

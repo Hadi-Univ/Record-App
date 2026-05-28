@@ -29,6 +29,29 @@ describe('isCapacitorNative()', () => {
   })
 })
 
+describe('isNativeOffline()', () => {
+  afterEach(() => {
+    delete window.Capacitor
+    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true })
+  })
+
+  it('returns true for native app when navigator is offline', async () => {
+    window.Capacitor = { isNativePlatform: () => true }
+    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true })
+    vi.resetModules()
+    const { isNativeOffline } = await import('../services/authService.js')
+    expect(isNativeOffline()).toBe(true)
+  })
+
+  it('returns false for web even if navigator is offline', async () => {
+    window.Capacitor = { isNativePlatform: () => false }
+    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true })
+    vi.resetModules()
+    const { isNativeOffline } = await import('../services/authService.js')
+    expect(isNativeOffline()).toBe(false)
+  })
+})
+
 // ---------------------------------------------------------------------------
 // Helpers shared across basic-auth tests
 // ---------------------------------------------------------------------------
@@ -41,6 +64,16 @@ function mockFetch(status, body) {
     text: async () => (isJson ? JSON.stringify(body) : body),
     json: async () => (isJson ? body : JSON.parse(body))
   })
+}
+
+function makeResponse(status, body) {
+  const isJson = typeof body === 'object'
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => (isJson ? JSON.stringify(body) : body),
+    json: async () => (isJson ? body : JSON.parse(body))
+  }
 }
 
 async function freshStore() {
@@ -285,5 +318,65 @@ describe('changePassword()', () => {
     store.state.token = 'tok'
     const { changePassword } = await import('../services/authService.js')
     await expect(changePassword('wrong', 'new')).rejects.toThrow('Current password is incorrect')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// validateRuntimeCapabilities
+// ---------------------------------------------------------------------------
+describe('validateRuntimeCapabilities()', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it('logs out automatically on 401 invalid token', async () => {
+    mockFetch(401, { detail: 'Invalid or expired token.' })
+    const store = await freshStore()
+    store.state.token = 'bad-token'
+    store.state.user = { name: 'User', email: 'user@example.com', picture: '' }
+    store.state.authMethod = 'api'
+
+    const { validateRuntimeCapabilities } = await import('../services/authService.js')
+    await expect(validateRuntimeCapabilities()).rejects.toThrow('Invalid or expired token.')
+
+    expect(store.state.token).toBe('')
+    expect(store.state.user).toBeNull()
+    expect(store.state.authMethod).toBe('')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// waitForRuntimeCapabilities
+// ---------------------------------------------------------------------------
+describe('waitForRuntimeCapabilities()', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it('retries while backend is not ready and resolves when ready', async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce(makeResponse(200, { ready: false, checks: [{ ok: false, message: 'warming up' }] }))
+      .mockResolvedValueOnce(makeResponse(200, { ready: true, checks: [] }))
+
+    await freshStore()
+    const { waitForRuntimeCapabilities } = await import('../services/authService.js')
+    const payload = await waitForRuntimeCapabilities({ maxAttempts: 5, intervalMs: 0 })
+
+    expect(payload.ready).toBe(true)
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry on authentication errors', async () => {
+    global.fetch = vi.fn().mockResolvedValue(makeResponse(401, { detail: 'Invalid or expired token.' }))
+    const store = await freshStore()
+    store.state.token = 'bad-token'
+    store.state.user = { name: 'User', email: 'user@example.com', picture: '' }
+    store.state.authMethod = 'api'
+
+    const { waitForRuntimeCapabilities } = await import('../services/authService.js')
+    await expect(waitForRuntimeCapabilities({ maxAttempts: 5, intervalMs: 0 })).rejects.toThrow('Invalid or expired token.')
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(store.state.token).toBe('')
   })
 })

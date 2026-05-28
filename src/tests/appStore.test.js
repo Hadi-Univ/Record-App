@@ -5,6 +5,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 // Because the store is a module-level singleton we simply manipulate state.
 let useAppStore
 
+beforeEach(() => {
+  vi.unstubAllEnvs()
+})
+
 async function freshStore(savedState = null) {
   if (savedState !== null) {
     localStorage.setItem('audio_pipeline_state_v3', JSON.stringify(savedState))
@@ -18,11 +22,24 @@ async function freshStore(savedState = null) {
 }
 
 describe('appStore – initial state', () => {
+  it('falls back to VITE_API_BASE_URL when persisted apiUrl is empty', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8000')
+    const { state, getBaseUrl } = await freshStore({ settings: { apiUrl: '' } })
+    expect(state.settings.apiUrl).toBe('http://localhost:8000')
+    expect(getBaseUrl()).toBe('http://localhost:8000')
+  })
+
   it('uses defaults when localStorage is empty', async () => {
     const { state } = await freshStore()
     expect(state.token).toBe('')
     expect(state.user).toBeNull()
     expect(state.historyCache).toEqual([])
+    expect(state.historySummaryCache).toEqual({
+      totalJobs: 0,
+      completedJobs: 0,
+      pendingJobs: 0,
+      recentJobs: []
+    })
     expect(state.historyDetailCache).toEqual({})
     expect(state.settings.provider).toBe('ollama')
     expect(state.settings.model).toBe('')
@@ -188,35 +205,17 @@ describe('appStore – getBaseUrl()', () => {
   })
 
   it('returns empty string for empty apiUrl', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', '')
     const { state, getBaseUrl } = await freshStore()
     state.settings.apiUrl = ''
     expect(getBaseUrl()).toBe('')
   })
-})
 
-describe('appStore – getAuthUrl()', () => {
-  it('appends google_token with ? when endpoint has no query string', async () => {
-    const { state, getAuthUrl } = await freshStore()
-    state.settings.apiUrl = 'https://api.example.com'
-    state.token = 'mytoken'
-    const url = getAuthUrl('/api/v1/history')
-    expect(url).toBe('https://api.example.com/api/v1/history?google_token=mytoken')
-  })
-
-  it('appends google_token with & when endpoint already has a query string', async () => {
-    const { state, getAuthUrl } = await freshStore()
-    state.settings.apiUrl = 'https://api.example.com'
-    state.token = 'mytoken'
-    const url = getAuthUrl('/api/v1/job?foo=bar')
-    expect(url).toBe('https://api.example.com/api/v1/job?foo=bar&google_token=mytoken')
-  })
-
-  it('URL-encodes special characters in the token', async () => {
-    const { state, getAuthUrl } = await freshStore()
-    state.settings.apiUrl = 'https://api.example.com'
-    state.token = 'tok/en=value'
-    const url = getAuthUrl('/path')
-    expect(url).toContain('google_token=tok%2Fen%3Dvalue')
+  it('falls back to VITE_API_BASE_URL when apiUrl is blank at runtime', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8000')
+    const { state, getBaseUrl } = await freshStore()
+    state.settings.apiUrl = '   '
+    expect(getBaseUrl()).toBe('http://localhost:8000')
   })
 })
 
@@ -224,13 +223,45 @@ describe('appStore – localStorage persistence', () => {
   it('persists state changes to localStorage reactively', async () => {
     const { state } = await freshStore()
 
-    // Trigger reactivity by changing a value
     state.token = 'new-token'
 
-    // Wait for the watcher (deep watch) to flush
-    await new Promise(resolve => setTimeout(resolve, 50))
+    await vi.waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem('audio_pipeline_state_v3') ?? '{}')
+      expect(saved.token).toBe('new-token')
+    })
+  })
+})
 
-    const saved = JSON.parse(localStorage.getItem('audio_pipeline_state_v3'))
-    expect(saved.token).toBe('new-token')
+describe('appStore – backend bootstrap state', () => {
+  it('tracks and clears the home bootstrap modal state', async () => {
+    const { state, beginBackendBootstrap, updateBackendBootstrap, finishBackendBootstrap } = await freshStore()
+
+    beginBackendBootstrap({
+      title: 'Preparing workspace',
+      message: 'Attempt 1',
+      attempt: 1,
+      maxAttempts: 20
+    })
+    expect(state.backendBootstrap).toEqual({
+      active: true,
+      title: 'Preparing workspace',
+      message: 'Attempt 1',
+      attempt: 1,
+      maxAttempts: 20
+    })
+
+    updateBackendBootstrap({ message: 'Attempt 2', attempt: 2 })
+    expect(state.backendBootstrap.message).toBe('Attempt 2')
+    expect(state.backendBootstrap.attempt).toBe(2)
+    expect(state.backendBootstrap.maxAttempts).toBe(20)
+
+    finishBackendBootstrap()
+    expect(state.backendBootstrap).toEqual({
+      active: false,
+      title: '',
+      message: '',
+      attempt: 0,
+      maxAttempts: 0
+    })
   })
 })

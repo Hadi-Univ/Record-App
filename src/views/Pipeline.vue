@@ -58,6 +58,13 @@
       </div>
     </div>
 
+    <div
+      v-if="store.state.processingLock?.locked && !pipeline.isProcessing"
+      class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800 text-sm font-semibold"
+    >
+      Another heavy task is running ({{ store.state.processingLock?.job_type || 'processing' }}). Actions are temporarily disabled.
+    </div>
+
     <!-- Error Banner -->
     <div
       v-if="pipeline.lastError"
@@ -503,15 +510,14 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               {{ t('pipeline.rerun') }}
             </button>
-            <a
+            <button
               v-if="pipeline.folderName"
-              :href="downloadUrl('transcript')"
-              download
+              @click="downloadArtifact('transcript_txt')"
               class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
               {{ t('pipeline.download') }}
-            </a>
+            </button>
           </div>
         </div>
         <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed max-h-48 overflow-y-auto">
@@ -536,22 +542,20 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               {{ t('pipeline.rerun') }}
             </button>
-            <a
-              :href="downloadUrl('summary')"
-              download
+            <button
+              @click="downloadArtifact('summary_txt')"
               class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
               {{ t('pipeline.txt') }}
-            </a>
-            <a
-              :href="downloadUrl('summary_html')"
-              download
+            </button>
+            <button
+              @click="downloadArtifact('summary_html')"
               class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
               {{ t('pipeline.html') }}
-            </a>
+            </button>
           </div>
         </div>
         <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed max-h-48 overflow-y-auto">
@@ -576,14 +580,13 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               {{ t('pipeline.rerun') }}
             </button>
-            <a
-              :href="downloadUrl('mindmap_png')"
-              download
+            <button
+              @click="downloadArtifact('image')"
               class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition flex items-center gap-1"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
               {{ t('pipeline.png') }}
-            </a>
+            </button>
           </div>
         </div>
         <!-- Prefer inline SVG if returned by the API, otherwise show PNG -->
@@ -593,8 +596,8 @@
           v-html="pipeline.results.mindmap_svg"
         />
         <img
-          v-else-if="pipeline.folderName"
-          :src="downloadUrl('mindmap_png')"
+          v-else-if="visualizationImageUrl"
+          :src="visualizationImageUrl"
           class="w-full rounded-xl border border-slate-200"
           :alt="t('pipeline.visualizationAlt')"
           @error="$event.target.style.display = 'none'"
@@ -653,6 +656,7 @@ const audioBlob = ref(null)
 const audioBlobUrl = ref(null)
 const recordingSeconds = ref(0)
 const recordError = ref('')
+const visualizationImageUrl = ref('')
 let mediaRecorder = null
 let audioChunks = []
 let recordingTimer = null
@@ -738,7 +742,7 @@ const formatTimestamp = (ts) => {
 const canStartPipeline = computed(() =>
   inputMode.value === 'upload' ? !!selectedFile.value : !!audioBlob.value
 )
-const isPipelineLocked = computed(() => pipeline.isProcessing)
+const isPipelineLocked = computed(() => pipeline.isProcessing || store.state.processingLock?.locked)
 
 const beginProcessingLock = () => {
   pipeline.isProcessing = true
@@ -914,15 +918,34 @@ const releaseMicStream = () => {
 onUnmounted(() => {
   discardRecording(true)
   releaseMicStream()
+  revokeObjectUrl(visualizationImageUrl)
   clearInterval(timeTickInterval)
 })
 
-const downloadUrl = (type) => {
-  if (type === 'transcript') return api.getDownloadUrl(pipeline.folderName, 'transcript_txt')
-  if (type === 'summary') return api.getDownloadUrl(pipeline.folderName, 'summary_txt')
-  if (type === 'summary_html') return api.getDownloadUrl(pipeline.folderName, 'summary_html')
-  if (type === 'mindmap_png') return api.getDownloadUrl(pipeline.folderName, 'image')
-  return api.getDownloadUrl(pipeline.folderName, type)
+const revokeObjectUrl = (urlRef) => {
+  if (urlRef.value?.startsWith('blob:')) URL.revokeObjectURL(urlRef.value)
+  urlRef.value = ''
+}
+
+const refreshVisualizationImageUrl = async () => {
+  revokeObjectUrl(visualizationImageUrl)
+  if (!pipeline.folderName || pipeline.results.mindmap_svg) return
+  try {
+    visualizationImageUrl.value = await api.createDownloadObjectUrl(pipeline.folderName, 'image', {
+      errorLabel: 'Visualization download failed',
+      timeoutMs: 30000
+    })
+  } catch {
+    visualizationImageUrl.value = ''
+  }
+}
+
+const downloadArtifact = async (fileType) => {
+  if (!pipeline.folderName) return
+  await api.downloadArtifact(pipeline.folderName, fileType, {
+    errorLabel: 'Download failed',
+    timeoutMs: 30000
+  })
 }
 
 const isDoneStatus = (statusValue) => String(statusValue || '').toLowerCase() === 'done'
@@ -975,6 +998,7 @@ const recoverPipelineAfterRefresh = async () => {
   try {
     const jobDetail = await api.getJob(pipeline.folderName, { cacheTtlMs: api.GET_CACHE_TTL_MS.JOB })
     const lastCompletedStep = syncPipelineFromManifest(jobDetail)
+    await refreshVisualizationImageUrl()
     if (!wasRunningBeforeReload) return
 
     if (lastCompletedStep === 'transcribe') {
@@ -1151,6 +1175,7 @@ const runVisualize = async () => {
       mindmap_svg: visualizeResult.svg || visualizeResult.mindmap_svg || '',
       mindmap_html: visualizeResult.html || visualizeResult.mindmap_html || ''
     }
+    await refreshVisualizationImageUrl()
     pipeline.currentStep = 4
     pipeline.status = 'done'
     releaseProcessingLock()

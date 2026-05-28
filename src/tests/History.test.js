@@ -38,6 +38,21 @@ function formatDate(dateStr) {
   }
 }
 
+function historyTitle(job) {
+  return String(job?.title || job?.display_title || job?.file_name || job?.folder_name || '').trim()
+}
+
+function normalizeRenameInput(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ')
+}
+
+function applyOptimisticRename(job, nextTitle) {
+  const previous = { title: job.title, display_title: job.display_title }
+  job.title = nextTitle
+  job.display_title = nextTitle
+  return previous
+}
+
 describe('History – statusClass()', () => {
   it('returns emerald classes for "done"', () => {
     expect(statusClass('done')).toBe('bg-emerald-100 text-emerald-700')
@@ -139,5 +154,27 @@ describe('History – formatDate()', () => {
     const result = formatDate(bad)
     // Should return the original or "Invalid Date" depending on environment
     expect(typeof result).toBe('string')
+  })
+})
+
+describe('History – rename helpers', () => {
+  it('prefers renamed title with fallback to file/folder name', () => {
+    expect(historyTitle({ title: 'Meeting A', display_title: 'Old', file_name: 'raw' })).toBe('Meeting A')
+    expect(historyTitle({ display_title: 'Meeting B', file_name: 'raw' })).toBe('Meeting B')
+    expect(historyTitle({ file_name: 'upload_001', folder_name: 'job_1' })).toBe('upload_001')
+    expect(historyTitle({ folder_name: 'job_1' })).toBe('job_1')
+  })
+
+  it('normalizes rename input by trimming and collapsing whitespace', () => {
+    expect(normalizeRenameInput('  Meeting   With   Team  ')).toBe('Meeting With Team')
+    expect(normalizeRenameInput('')).toBe('')
+  })
+
+  it('applies optimistic title update and returns previous values for rollback', () => {
+    const job = { title: 'Old', display_title: 'Old' }
+    const previous = applyOptimisticRename(job, 'New')
+    expect(previous).toEqual({ title: 'Old', display_title: 'Old' })
+    expect(job.title).toBe('New')
+    expect(job.display_title).toBe('New')
   })
 })

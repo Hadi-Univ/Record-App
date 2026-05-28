@@ -256,14 +256,14 @@
                 Summary
               </h2>
               <div class="flex gap-2">
-                <a :href="downloadUrl('summary_txt')" download class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg">
+                <button @click="downloadArtifactFor('summary_txt')" class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                   TXT
-                </a>
-                <a :href="downloadUrl('summary_html')" download class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg">
+                </button>
+                <button @click="downloadArtifactFor('summary_html')" class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                   HTML
-                </a>
+                </button>
               </div>
             </div>
             <article
@@ -329,10 +329,10 @@
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 Export JSON
               </button>
-              <a v-if="detail.transcript" :href="downloadUrl('transcript_txt')" download class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg">
+              <button v-if="detail.transcript" @click="downloadArtifactFor('transcript_txt')" class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 TXT
-              </a>
+              </button>
             </div>
           </div>
 
@@ -463,6 +463,7 @@
                 <div ref="chatScrollRef" class="flex-1 min-h-0 overflow-y-auto overscroll-contain scroll-smooth">
                   <ChatMessageList :messages="chatMessages" :loading="chatLoading" />
                 </div>
+                <ChatWarningMessage v-if="chatSecurityWarning" :message="chatSecurityWarning" />
                 <div v-if="chatError" class="px-4 pb-2">
                   <div class="bg-red-50 border border-red-200 rounded-xl p-2.5 flex items-start gap-2">
                     <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
@@ -567,7 +568,7 @@
               <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 9.5v5m-3.536-6.036a5 5 0 000 7.072"/></svg>
               Audio Source
             </h3>
-            <audio controls class="w-full rounded-xl" :src="downloadUrl('audio')" />
+            <audio controls class="w-full rounded-xl" :src="audioSourceUrl" />
           </div>
 
           <!-- Speaker timeline image -->
@@ -577,12 +578,12 @@
                 <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
                 Speaker Timeline
               </h3>
-              <a :href="downloadUrl('image')" download class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg">
+              <button @click="downloadArtifactFor('image')" class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 PNG
-              </a>
+              </button>
             </div>
-            <img :src="downloadUrl('image')" class="w-full rounded-xl border border-slate-200" alt="Speaker timeline visualization" @error="$event.target.style.display = 'none'" />
+            <img :src="timelineImageUrl" class="w-full rounded-xl border border-slate-200" alt="Speaker timeline visualization" @error="$event.target.style.display = 'none'" />
           </div>
 
           <!-- Translate outputs -->
@@ -681,20 +682,25 @@ import { ref, reactive, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
-import { getJob, getDownloadUrl, fetchDownloadText, fetchDownloadJson, summarizeJob, visualizeJob, translateJob, saveTranscript, generateFlashcards, createShareLink, revokeShareLink, fetchHistoryArtifactsParallel, GET_CACHE_TTL_MS } from '../services/api'
+import { getJob, createDownloadObjectUrl, downloadArtifact, fetchDownloadText, fetchDownloadJson, summarizeJob, visualizeJob, translateJob, saveTranscript, generateFlashcards, createShareLink, revokeShareLink, fetchHistoryArtifactsParallel, GET_CACHE_TTL_MS } from '../services/api'
 import { normalizeFlashcardsPayload, normalizeChatHistoryPayload } from '../services/historyArtifacts'
 import { createRequestCanceller } from '../services/httpClient'
 import { useAppStore } from '../stores/appStore'
 import { useChatbotStore } from '../stores/chatbotStore'
+import { isCapacitorNative } from '../services/authService'
 import { useI18n } from '../i18n/index.js'
+import { useJobStatus } from '../composables/useJobStatus.js'
 import ChatHistoryPanel from '../components/ChatHistoryPanel.jsx'
 import ChatInput from '../components/ChatInput.jsx'
 import ChatMessageList from '../components/ChatMessageList.jsx'
+import ChatWarningMessage from '../components/chat/ChatWarningMessage.vue'
 
 const route = useRoute()
 const store = useAppStore()
 const chatbotStore = useChatbotStore()
+const nativeApp = isCapacitorNative()
 const { t } = useI18n()
+const { statusClass, formatDate } = useJobStatus()
 
 const TRANSLATE_LANGUAGES = [
   { code: 'Acehnese', label: 'Acehnese' },
@@ -826,6 +832,9 @@ const transcriptSaveLoading = ref(false)
 const transcriptSaveError = ref('')
 const transcriptDirty = ref(false)
 const transcriptEditVersion = ref(0)
+const audioSourceUrl = ref('')
+const timelineImageUrl = ref('')
+let actionAssetRequestId = 0
 let transcriptSaveTimer = null
 
 // --- Translate state ---
@@ -914,6 +923,7 @@ const activeChatSessionId = computed(() => String(chatBucket.value.activeSession
 const chatLoading = computed(() => Boolean(chatBucket.value.loadingMessages || chatBucket.value.sending))
 const chatSessionsLoading = computed(() => Boolean(chatBucket.value.loadingSessions))
 const chatError = computed(() => String(chatBucket.value.error || ''))
+const chatSecurityWarning = computed(() => String(chatBucket.value.securityWarning || ''))
 
 const sendChat = async (question) => {
   const clean = String(question || '').trim()
@@ -971,29 +981,6 @@ const availableTranslations = computed(() => {
   if (!translations || typeof translations !== 'object') return []
   return Object.keys(translations)
 })
-
-// --- Status helpers ---
-const statusClass = (status) => {
-  const map = {
-    done: 'bg-emerald-100 text-emerald-700',
-    completed: 'bg-emerald-100 text-emerald-700',
-    error: 'bg-red-100 text-red-700',
-    failed: 'bg-red-100 text-red-700',
-    running: 'bg-indigo-100 text-indigo-700',
-    processing: 'bg-indigo-100 text-indigo-700',
-    pending: 'bg-amber-100 text-amber-700'
-  }
-  return map[String(status || '').toLowerCase()] || 'bg-slate-100 text-slate-600'
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dateStr))
-  } catch {
-    return dateStr
-  }
-}
 
 const canSummarize = computed(() =>
   manifest.value && String(manifest.value.status?.summarize || '').toLowerCase() !== 'done'
@@ -1215,6 +1202,7 @@ const resetDetailState = () => {
   chatState.loadingMessages = false
   chatState.sending = false
   chatState.error = ''
+  chatState.securityWarning = ''
   // Reset tab state
   activeTab.value = 'summary'
   activeTranscriptTab.value = 'editor'
@@ -1248,6 +1236,9 @@ const getCachedDetail = (folder) => {
 
 const applyCachedDetail = (cached) => {
   if (!hasDetailContent(cached)) return false
+  if (cached?.manifest && typeof cached.manifest === 'object') {
+    manifest.value = cached.manifest
+  }
   detail.value = {
     summary: cached.summary || '',
     transcript: cached.transcript || ''
@@ -1271,6 +1262,7 @@ const applyCachedDetail = (cached) => {
 const saveCachedDetail = () => {
   if (!folderName.value) return
   const payload = {
+    manifest: manifest.value && typeof manifest.value === 'object' ? { ...manifest.value } : null,
     summary: detail.value.summary || '',
     transcript: detail.value.transcript || '',
     transcriptData: transcriptData.value.map(({ _id, ...rest }) => ({ ...rest })),
@@ -1289,11 +1281,20 @@ const saveCachedDetail = () => {
 const loadDetail = async () => {
   if (!folderName.value) return
   const signal = requestCanceller.nextSignal('detail-load')
+  actionAssetRequestId += 1
   loading.value = true
   error.value = ''
   resetDetailState()
+  resetActionAssetUrls()
   const cached = getCachedDetail(folderName.value)
   if (cached) applyCachedDetail(cached)
+  if (nativeApp && typeof navigator !== 'undefined' && navigator.onLine === false) {
+    if (cached) {
+      error.value = t('historyDetail.offlineDetailMode')
+      loading.value = false
+      return
+    }
+  }
   
   try {
     try {
@@ -1369,13 +1370,16 @@ const loadDetail = async () => {
     // Save original content for the language switcher (shallow copy with _id intact)
     originalDetail.value = { summary: detail.value.summary, transcript: detail.value.transcript }
     originalTranscriptData.value = transcriptData.value.map(item => ({ ...item }))
+    if (activeTab.value === 'actions') {
+      await refreshActionAssetUrls()
+    }
 
   } catch (err) {
     if (signal.aborted) return
     if (!applyCachedDetail(cached)) {
       error.value = err.message || 'Failed to load job detail.'
     } else {
-      error.value = 'Unable to connect: displaying saved job detail from this device.'
+      error.value = t('historyDetail.offlineDetailMode')
     }
   } finally {
     if (!signal.aborted) {
@@ -1498,8 +1502,51 @@ const runTranslateDetail = async () => {
   }
 }
 
-// Audio is never translated, so always serve the original audio file regardless of the selected lang pair.
-const downloadUrl = (fileType) => getDownloadUrl(folderName.value, fileType, fileType === 'audio' ? null : selectedLangPair.value)
+const revokeObjectUrl = (urlRef) => {
+  if (urlRef.value?.startsWith('blob:')) URL.revokeObjectURL(urlRef.value)
+  urlRef.value = ''
+}
+
+const resetActionAssetUrls = () => {
+  revokeObjectUrl(audioSourceUrl)
+  revokeObjectUrl(timelineImageUrl)
+}
+
+const refreshActionAssetUrls = async () => {
+  const requestId = ++actionAssetRequestId
+  resetActionAssetUrls()
+  if (activeTab.value !== 'actions' || !folderName.value) return
+
+  const audioPromise = createDownloadObjectUrl(folderName.value, 'audio', {
+    errorLabel: 'Failed to load audio',
+    timeoutMs: 30000
+  })
+  const imagePromise = manifest.value?.files?.timeline_png
+    ? createDownloadObjectUrl(folderName.value, 'image', {
+        errorLabel: 'Failed to load visualization',
+        timeoutMs: 30000
+      })
+    : Promise.resolve('')
+
+  const [audioResult, imageResult] = await Promise.allSettled([audioPromise, imagePromise])
+  if (requestId !== actionAssetRequestId) {
+    if (audioResult.status === 'fulfilled' && audioResult.value?.startsWith('blob:')) URL.revokeObjectURL(audioResult.value)
+    if (imageResult.status === 'fulfilled' && imageResult.value?.startsWith('blob:')) URL.revokeObjectURL(imageResult.value)
+    return
+  }
+  audioSourceUrl.value = audioResult.status === 'fulfilled' ? audioResult.value : ''
+  timelineImageUrl.value = imageResult.status === 'fulfilled' ? imageResult.value : ''
+}
+
+const downloadArtifactFor = async (fileType) => {
+  if (!folderName.value) return
+  const langPair = fileType === 'audio' || fileType === 'image' ? null : selectedLangPair.value
+  await downloadArtifact(folderName.value, fileType, {
+    langPair,
+    errorLabel: 'Download failed',
+    timeoutMs: 30000
+  })
+}
 
 const switchToTranslation = async (langPair) => {
   selectedLangPair.value = langPair
@@ -1566,9 +1613,15 @@ const switchToTranslation = async (langPair) => {
 
 onBeforeUnmount(() => {
   requestCanceller.clearAll()
+  resetActionAssetUrls()
 })
 
 watch(() => route.params.folderName, loadDetail, { immediate: true })
+watch(activeTab, (tab) => {
+  if (tab === 'actions') {
+    refreshActionAssetUrls()
+  }
+})
 
 // After load, auto-navigate to Transcript tab when no summary is available
 watch(loading, (isLoading) => {

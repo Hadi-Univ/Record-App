@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6 pb-6">
+  <div class="space-y-6 pb-6" :aria-busy="isBootstrapping ? 'true' : 'false'">
 
     <!-- ─── Greeting Hero ─── -->
     <div data-reveal class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
@@ -84,7 +84,7 @@
       </div>
 
       <!-- Loading skeleton -->
-      <div v-if="loading" class="divide-y divide-slate-100">
+      <div v-if="loading || isBootstrapping" class="divide-y divide-slate-100">
         <div v-for="n in 3" :key="n" class="p-5 animate-pulse flex items-center gap-4">
           <div class="w-16 h-5 bg-slate-200 rounded-full"/>
           <div class="flex-1 space-y-2">
@@ -194,12 +194,17 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/appStore'
 import { getHistory, GET_CACHE_TTL_MS } from '../services/api.js'
+import { waitForRuntimeCapabilities } from '../services/authService'
+import { normalizeHistoryResponse } from '../services/historyResponse.js'
 import { useI18n } from '../i18n/index.js'
+import { useJobStatus } from '../composables/useJobStatus.js'
 
 const store = useAppStore()
 const router = useRouter()
 const pipeline = store.state.pipeline
 const { t } = useI18n()
+const { statusClass, displayStatus, formatDate } = useJobStatus()
+const BOOTSTRAP_STALE_MS = 60_000
 
 // ── Pipeline banner ────────────────────────────────────────────────────
 const showPipelineBanner = computed(() =>
@@ -208,8 +213,17 @@ const showPipelineBanner = computed(() =>
 )
 
 const jobs = ref(Array.isArray(store.state.historyCache) ? [...store.state.historyCache] : [])
+const summary = ref({
+  totalJobs: Number(store.state.historySummaryCache?.totalJobs) || jobs.value.length,
+  completedJobs: Number(store.state.historySummaryCache?.completedJobs) || 0,
+  pendingJobs: Number(store.state.historySummaryCache?.pendingJobs) || 0,
+  recentJobs: Array.isArray(store.state.historySummaryCache?.recentJobs)
+    ? [...store.state.historySummaryCache.recentJobs]
+    : jobs.value.slice(0, 5)
+})
 const loading = ref(false)
 const error = ref('')
+const isBootstrapping = computed(() => store.state.backendBootstrap.active)
 
 // ── Greeting ──────────────────────────────────────────────────────────
 const userName = computed(() => store.state.user?.name || '')
@@ -223,55 +237,28 @@ const timeOfDay = computed(() => {
 })
 
 // ── Stats helpers ─────────────────────────────────────────────────────
-const extractStatusString = (status) =>
-  typeof status === 'string' ? status
-    : status?.visualize || status?.summarize || status?.transcribe || 'unknown'
-
 // ── Stats ──────────────────────────────────────────────────────────────
-const totalJobs = computed(() => jobs.value.length)
+const totalJobs = computed(() => summary.value.totalJobs)
 
-const completedJobs = computed(() =>
-  jobs.value.filter(j => ['done', 'completed'].includes(extractStatusString(j.status).toLowerCase())).length
-)
+const completedJobs = computed(() => summary.value.completedJobs)
 
-const pendingJobs = computed(() =>
-  jobs.value.filter(j => {
-    if (!j.status) return false
-    if (typeof j.status === 'string') return j.status.toLowerCase() === 'pending'
-    return Object.values(j.status).some(v => String(v).toLowerCase() === 'pending')
-  }).length
-)
+const pendingJobs = computed(() => summary.value.pendingJobs)
 
 // ── Recent jobs (5 most recent) ─────────────────────────────────────
-const recentJobs = computed(() => jobs.value.slice(0, 5))
-
-// ── Status helpers ────────────────────────────────────────────────────
-const statusClass = (status) => {
-  const map = {
-    done: 'bg-emerald-100 text-emerald-700',
-    completed: 'bg-emerald-100 text-emerald-700',
-    error: 'bg-red-100 text-red-700',
-    failed: 'bg-red-100 text-red-700',
-    running: 'bg-indigo-100 text-indigo-700',
-    processing: 'bg-indigo-100 text-indigo-700',
-    pending: 'bg-amber-100 text-amber-700'
-  }
-  return map[String(extractStatusString(status)).toLowerCase()] || 'bg-slate-100 text-slate-600'
-}
-
-const displayStatus = (status) => String(extractStatusString(status)).toUpperCase()
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dateStr))
-  } catch { return dateStr }
-}
+const recentJobs = computed(() => summary.value.recentJobs)
 
 // ── Navigation ─────────────────────────────────────────────────────────
 const openJob = (folderName) => {
   if (!folderName) return
   router.push(`/history/${encodeURIComponent(folderName)}`)
+}
+
+const applyHistoryPayload = (payload) => {
+  const normalized = normalizeHistoryResponse(payload)
+  jobs.value = normalized.jobs
+  summary.value = normalized.summary
+  store.state.historyCache = normalized.jobs
+  store.state.historySummaryCache = normalized.summary
 }
 
 // ── Data fetch ─────────────────────────────────────────────────────────
@@ -280,13 +267,19 @@ const loadHistory = async () => {
   error.value = ''
   try {
     const result = await getHistory({ cacheTtlMs: GET_CACHE_TTL_MS.HISTORY })
-    const normalized = Array.isArray(result) ? result : (result.jobs || result.data || [])
-    jobs.value = normalized
-    store.state.historyCache = normalized
+    applyHistoryPayload(result)
   } catch (err) {
     const cached = Array.isArray(store.state.historyCache) ? store.state.historyCache : []
     if (cached.length) {
       jobs.value = [...cached]
+      summary.value = {
+        totalJobs: Number(store.state.historySummaryCache?.totalJobs) || cached.length,
+        completedJobs: Number(store.state.historySummaryCache?.completedJobs) || 0,
+        pendingJobs: Number(store.state.historySummaryCache?.pendingJobs) || 0,
+        recentJobs: Array.isArray(store.state.historySummaryCache?.recentJobs)
+          ? [...store.state.historySummaryCache.recentJobs]
+          : cached.slice(0, 5)
+      }
     } else {
       error.value = err.message
     }
@@ -295,7 +288,51 @@ const loadHistory = async () => {
   }
 }
 
-onMounted(() => {
-  loadHistory()
+const ensureBackendReadyForHome = async () => {
+  const capabilities = store.state.capabilities || {}
+  const stale = !capabilities.checkedAt || (Date.now() - capabilities.checkedAt) > BOOTSTRAP_STALE_MS
+  if (!store.state.token || (!stale && capabilities.ready)) {
+    return true
+  }
+
+  store.beginBackendBootstrap({
+    title: t('home.preparingWorkspaceTitle'),
+    message: t('home.preparingWorkspaceDescription')
+  })
+
+  try {
+    const payload = await waitForRuntimeCapabilities({
+      maxAttempts: 20,
+      intervalMs: 1500,
+      onAttempt: ({ attempt, maxAttempts }) => {
+        store.updateBackendBootstrap({
+          message: t('home.preparingWorkspaceProgress', { attempt, maxAttempts }),
+          attempt,
+          maxAttempts
+        })
+      }
+    })
+    if (!payload?.ready) {
+      error.value = store.state.capabilities.error || t('home.backendStillPreparing')
+      return false
+    }
+    return true
+  } catch (err) {
+    if (err?.status === 401 || err?.status === 403) {
+      router.replace('/login')
+      return false
+    }
+    error.value = err.message || t('home.backendStillPreparing')
+    return false
+  } finally {
+    store.finishBackendBootstrap()
+  }
+}
+
+onMounted(async () => {
+  const ready = await ensureBackendReadyForHome()
+  if (ready) {
+    loadHistory()
+  }
 })
 </script>

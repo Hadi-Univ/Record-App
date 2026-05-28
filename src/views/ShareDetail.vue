@@ -44,20 +44,14 @@ import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPublicShare } from '../services/api'
 import { useI18n } from '../i18n/index.js'
+import { useJobStatus } from '../composables/useJobStatus.js'
 
 const route = useRoute()
 const { t } = useI18n()
+const { formatDate } = useJobStatus()
 const payload = ref(null)
 const loading = ref(false)
 const error = ref('')
-
-const formatDate = (dateStr) => {
-  try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dateStr))
-  } catch {
-    return dateStr
-  }
-}
 
 onMounted(async () => {
   const shareId = String(route.params.shareId || '')

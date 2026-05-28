@@ -115,28 +115,37 @@ export async function requestRaw(url, options = {}) {
       if (!response.ok) {
         const payload = await parseResponseBody(response)
         const fallback = `Request failed (${response.status})`
-        const detail = toErrorMessage(payload, fallback)
+        const normalized = normalizeApiError({ payload, status: response.status, fallback })
+        const detail = normalized.message || toErrorMessage(payload, fallback)
         const labelPrefix = errorLabel ? `${errorLabel} (${response.status})` : null
         const message = labelPrefix ? `${labelPrefix}: ${detail}` : detail
-        throw new HttpError(message, {
+        const httpError = new HttpError(message, {
           status: response.status,
           method: upperMethod,
           url,
           payload
         })
+        httpError.kind = normalized.kind
+        httpError.safeMessage = normalized.message
+        httpError.isSecurity = normalized.kind === 'security'
+        throw httpError
       }
 
       return response
     } catch (error) {
       if (!shouldRetry({ attempt, retries, method: upperMethod, error, retryableStatusCodes })) {
         if (error?.name === 'TimeoutError' || /timed out/i.test(error?.message || '')) {
-          const timeoutError = new HttpError('Request timed out.', { method: upperMethod, url })
+          const normalized = normalizeApiError({ status: 0, originalMessage: 'timed out' })
+          const timeoutError = new HttpError(normalized.message, { method: upperMethod, url })
           timeoutError.name = 'TimeoutError'
+          timeoutError.kind = normalized.kind
           throw timeoutError
         }
         if (error?.name === 'AbortError') {
-          const abortError = new HttpError('Request was cancelled.', { method: upperMethod, url })
+          const normalized = normalizeApiError({ status: 0, originalMessage: 'aborted' })
+          const abortError = new HttpError(normalized.message, { method: upperMethod, url })
           abortError.name = 'AbortError'
+          abortError.kind = normalized.kind
           throw abortError
         }
         throw error
@@ -172,6 +181,11 @@ export async function requestText(url, options = {}) {
   return response.text()
 }
 
+export async function requestBlob(url, options = {}) {
+  const response = await requestRaw(url, options)
+  return response.blob()
+}
+
 export function createRequestCanceller() {
   const controllers = new Map()
 
@@ -196,3 +210,4 @@ export function createRequestCanceller() {
     }
   }
 }
+import { normalizeApiError } from './errorHandler'
