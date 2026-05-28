@@ -1,15 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-
-// ---------- helpers ----------
-
-function makeResponse(body, ok = true, status = 200) {
-  return {
-    ok,
-    status,
-    json: vi.fn().mockResolvedValue(body),
-    text: vi.fn().mockResolvedValue(typeof body === 'string' ? body : JSON.stringify(body))
-  }
-}
+import { makeResponse, mockFetchResponse } from './mocks/http.js'
 
 // Mock store module so api.js picks up a controllable store singleton.
 // model and apiKey are empty by default to test the "omit when falsy" branch.
@@ -39,7 +29,7 @@ const api = await import('../services/api.js')
 describe('uploadAndTranscribe', () => {
   it('POSTs to /api/v1/transcribe and returns JSON on success', async () => {
     const result = { folder_name: 'job_1', transcript: 'Hello world' }
-    global.fetch = vi.fn().mockResolvedValue(makeResponse(result))
+    mockFetchResponse(result)
 
     const file = new File(['audio'], 'test.mp3', { type: 'audio/mpeg' })
     const data = await api.uploadAndTranscribe(file)
@@ -53,7 +43,7 @@ describe('uploadAndTranscribe', () => {
   })
 
   it('throws an error with status code when response is not ok', async () => {
-    global.fetch = vi.fn().mockResolvedValue(makeResponse('Unauthorized', false, 401))
+    mockFetchResponse('Unauthorized', false, 401)
 
     const file = new File(['audio'], 'test.mp3', { type: 'audio/mpeg' })
     await expect(api.uploadAndTranscribe(file)).rejects.toThrow('Transcription failed (401)')
@@ -63,7 +53,7 @@ describe('uploadAndTranscribe', () => {
 describe('summarizeJob', () => {
   it('POSTs to /api/v1/summarize with correct JSON body', async () => {
     const result = { summary: 'A summary', keywords: ['key1', 'key2'] }
-    global.fetch = vi.fn().mockResolvedValue(makeResponse(result))
+    mockFetchResponse(result)
 
     const data = await api.summarizeJob('job_1', 'audio.mp3')
 
@@ -79,7 +69,7 @@ describe('summarizeJob', () => {
   })
 
   it('omits model and api_key when they are empty strings', async () => {
-    global.fetch = vi.fn().mockResolvedValue(makeResponse({ summary: '' }))
+    mockFetchResponse({ summary: '' })
 
     await api.summarizeJob('job_1', 'audio.mp3')
 
@@ -89,7 +79,7 @@ describe('summarizeJob', () => {
   })
 
   it('throws an error on non-ok response', async () => {
-    global.fetch = vi.fn().mockResolvedValue(makeResponse('Server error', false, 500))
+    mockFetchResponse('Server error', false, 500)
     await expect(api.summarizeJob('job_1', 'audio.mp3')).rejects.toThrow('Summarization failed (500)')
   })
 })
