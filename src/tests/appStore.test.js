@@ -205,6 +205,7 @@ describe('appStore – getBaseUrl()', () => {
   })
 
   it('returns empty string for empty apiUrl', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', '')
     const { state, getBaseUrl } = await freshStore()
     state.settings.apiUrl = ''
     expect(getBaseUrl()).toBe('')
@@ -222,14 +223,12 @@ describe('appStore – localStorage persistence', () => {
   it('persists state changes to localStorage reactively', async () => {
     const { state } = await freshStore()
 
-    // Trigger reactivity by changing a value
     state.token = 'new-token'
 
-    // Wait for the watcher (deep watch) to flush
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const saved = JSON.parse(localStorage.getItem('audio_pipeline_state_v3'))
-    expect(saved.token).toBe('new-token')
+    await vi.waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem('audio_pipeline_state_v3') ?? '{}')
+      expect(saved.token).toBe('new-token')
+    })
   })
 })
 
