@@ -205,6 +205,7 @@ describe('appStore – getBaseUrl()', () => {
   })
 
   it('returns empty string for empty apiUrl', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', '')
     const { state, getBaseUrl } = await freshStore()
     state.settings.apiUrl = ''
     expect(getBaseUrl()).toBe('')
