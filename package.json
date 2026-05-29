@@ -8,10 +8,22 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:android": "npm run build && npx cap sync android",
+    "cap:open:android": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^5.7.8",
+    "@capacitor/app": "^5.0.7",
     "@capacitor/core": "^5.7.8",
+    "@capacitor/filesystem": "^5.0.7",
+    "@capacitor/haptics": "^5.0.7",
+    "@capacitor/keyboard": "^5.0.7",
+    "@capacitor/local-notifications": "^5.0.8",
+    "@capacitor/network": "^5.0.7",
+    "@capacitor/preferences": "^5.0.7",
+    "@capacitor/share": "^5.0.7",
     "@codetrix-studio/capacitor-google-auth": "^3.3.6",
     "dompurify": "^3.4.2",
     "markdown-it": "^14.1.1",
@@ -19,6 +31,7 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@capacitor/cli": "^5.7.8",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/test-utils": "^2.4.6",
     "autoprefixer": "^10.4.27",

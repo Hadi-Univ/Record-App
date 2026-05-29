@@ -262,8 +262,15 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
               </svg>
             </div>
-            <p class="text-sm font-semibold text-slate-700">{{ t('pipeline.dropAudio') }}</p>
-            <p class="text-xs text-slate-400 mt-1">{{ t('pipeline.orClickToBrowse') }}</p>
+            <p class="text-sm font-semibold text-slate-700">{{ t('pipeline.orClickToBrowse') }}</p>
+            <button
+              type="button"
+              :disabled="isPipelineLocked"
+              class="touch-target mt-3 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {{ t('pipeline.uploadFile') }}
+            </button>
+            <p class="text-xs text-slate-400 mt-2">{{ t('pipeline.dropAudio') }}</p>
             <p class="text-xs text-slate-400 mt-2">{{ t('pipeline.supportedFormats') }}</p>
           </div>
           <div v-else class="flex items-center justify-center gap-3">
@@ -631,6 +638,8 @@ import AudioSpectrum from '../components/AudioSpectrum.vue'
 import { useAppStore } from '../stores/appStore'
 import * as api from '../services/api.js'
 import { useI18n } from '../i18n/index.js'
+import { useAudioRecorder } from '../features/pipeline/composables/useAudioRecorder'
+import { useChunkUpload } from '../features/pipeline/composables/useChunkUpload'
 
 const store = useAppStore()
 const pipeline = store.state.pipeline
@@ -642,25 +651,9 @@ const dragOver = ref(false)
 const uploadProcessingNotice = ref('')
 const fileValidationError = ref('')
 
-// Chunked upload state
-const chunkUploadProgress = ref(0)
-const chunkUploadStep = ref('') // 'uploading' | 'assembling' | ''
-
-const PARALLEL_CHUNKS = 3
-const MAX_CHUNK_RETRIES = 3
-
 // Record mode state
 const inputMode = ref('upload') // 'upload' | 'record'
-const isRecording = ref(false)
-const audioBlob = ref(null)
-const audioBlobUrl = ref(null)
-const recordingSeconds = ref(0)
-const recordError = ref('')
 const visualizationImageUrl = ref('')
-let mediaRecorder = null
-let audioChunks = []
-let recordingTimer = null
-const micStream = ref(null)
 
 // ── Pipeline Metrics ──────────────────────────────────────────────────────────
 const stageLabels = computed(() => ({
@@ -743,6 +736,33 @@ const canStartPipeline = computed(() =>
   inputMode.value === 'upload' ? !!selectedFile.value : !!audioBlob.value
 )
 const isPipelineLocked = computed(() => pipeline.isProcessing || store.state.processingLock?.locked)
+const microphoneDeniedMessage = computed(() => t('pipeline.microphoneDenied'))
+const assemblingSubstepText = computed(() => t('pipeline.stageAssemblingSubstep'))
+
+const {
+  isRecording,
+  audioBlob,
+  audioBlobUrl,
+  recordingSeconds,
+  recordError,
+  micStream,
+  startRecording,
+  stopRecording,
+  discardRecording
+} = useAudioRecorder({
+  isLockedRef: isPipelineLocked,
+  microphoneDeniedMessage
+})
+
+const {
+  chunkUploadProgress,
+  chunkUploadStep,
+  uploadFileChunked
+} = useChunkUpload({
+  api,
+  pipeline,
+  assemblingSubstepText
+})
 
 const beginProcessingLock = () => {
   pipeline.isProcessing = true
@@ -847,77 +867,8 @@ const formatRecordingTime = (seconds) => {
   return `${m}:${s}`
 }
 
-const startRecording = async () => {
-  if (isPipelineLocked.value) return
-  recordError.value = ''
-  audioChunks = []
-  try {
-    micStream.value = await navigator.mediaDevices.getUserMedia({ audio: true })
-  } catch (err) {
-    console.error('Microphone access error:', err)
-    recordError.value = t('pipeline.microphoneDenied')
-    return
-  }
-
-  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-    ? 'audio/webm;codecs=opus'
-    : MediaRecorder.isTypeSupported('audio/webm')
-      ? 'audio/webm'
-      : ''
-
-  mediaRecorder = mimeType
-    ? new MediaRecorder(micStream.value, { mimeType })
-    : new MediaRecorder(micStream.value)
-
-  mediaRecorder.ondataavailable = (e) => {
-    if (e.data && e.data.size > 0) audioChunks.push(e.data)
-  }
-
-  mediaRecorder.onstop = () => {
-    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' })
-    audioBlob.value = blob
-    audioBlobUrl.value = URL.createObjectURL(blob)
-    releaseMicStream()
-  }
-
-  mediaRecorder.start(250)
-  isRecording.value = true
-  recordingSeconds.value = 0
-  recordingTimer = setInterval(() => { recordingSeconds.value++ }, 1000)
-}
-
-const stopRecording = (force = false) => {
-  if (isPipelineLocked.value && !force) return
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop()
-  }
-  clearInterval(recordingTimer)
-  recordingTimer = null
-  isRecording.value = false
-}
-
-const discardRecording = (force = false) => {
-  if (isPipelineLocked.value && !force) return
-  stopRecording(force)
-  if (audioBlobUrl.value) {
-    URL.revokeObjectURL(audioBlobUrl.value)
-    audioBlobUrl.value = null
-  }
-  audioBlob.value = null
-  recordingSeconds.value = 0
-  recordError.value = ''
-}
-
-const releaseMicStream = () => {
-  if (micStream.value) {
-    micStream.value.getTracks().forEach((t) => t.stop())
-    micStream.value = null
-  }
-}
-
 onUnmounted(() => {
   discardRecording(true)
-  releaseMicStream()
   revokeObjectUrl(visualizationImageUrl)
   clearInterval(timeTickInterval)
 })
@@ -1070,58 +1021,6 @@ const startPipeline = async () => {
 
   // Automatically continue to summarize
   await runSummarize()
-}
-
-/**
- * Upload a file using the resumable chunked-upload API.
- * Splits the file into CHUNK_SIZE pieces, uploads them in parallel batches,
- * retries failed chunks, then calls /upload/complete to assemble + transcribe.
- */
-const uploadFileChunked = async (file) => {
-  const totalChunks = Math.ceil(file.size / api.CHUNK_SIZE)
-  chunkUploadProgress.value = 0
-  chunkUploadStep.value = 'uploading'
-
-  // Init session
-  const { upload_id } = await api.initChunkedUpload(file.name, totalChunks, file.size)
-
-  // Resume: find out which chunks the server already has
-  const { received_chunks: alreadyReceived } = await api.getUploadStatus(upload_id)
-  const receivedSet = new Set(alreadyReceived)
-  const pending = Array.from({ length: totalChunks }, (_, i) => i).filter(i => !receivedSet.has(i))
-
-  let uploaded = alreadyReceived.length
-
-  // Upload pending chunks in parallel batches
-  for (let i = 0; i < pending.length; i += PARALLEL_CHUNKS) {
-    const batch = pending.slice(i, i + PARALLEL_CHUNKS)
-    await Promise.all(batch.map(async (chunkIndex) => {
-      const start = chunkIndex * api.CHUNK_SIZE
-      const end = Math.min(start + api.CHUNK_SIZE, file.size)
-      const blob = file.slice(start, end)
-      let lastErr
-      for (let attempt = 0; attempt < MAX_CHUNK_RETRIES; attempt++) {
-        try {
-          await api.uploadChunk(upload_id, chunkIndex, blob)
-          uploaded++
-          chunkUploadProgress.value = Math.round((uploaded / totalChunks) * 90)
-          return
-        } catch (err) {
-          lastErr = err
-        }
-      }
-      throw lastErr
-    }))
-  }
-
-  // Assemble + transcribe
-  pipeline.currentSubStep = t('pipeline.stageAssemblingSubstep')
-  chunkUploadStep.value = 'assembling'
-  chunkUploadProgress.value = 95
-  const result = await api.completeChunkedUpload(upload_id)
-  chunkUploadProgress.value = 100
-  chunkUploadStep.value = ''
-  return result
 }
 
 const runSummarize = async () => {
