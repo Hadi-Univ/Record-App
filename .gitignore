@@ -6,10 +6,16 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
+android/
+ios/
 
 # Environment files
 .env
 .env.local
+.env.development
+.env.*.development
+.env.production
+.env.*.production
 .env.*.local
 
 # Editor directories and files
@@ -24,20 +30,6 @@ dist-ssr/
 # OS
 .DS_Store
 Thumbs.db
-
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.venv/
-venv/
-*.egg-info/
-
-# Backend data / runtime files
-backend/Data/
-backend/auth.db
-backend/*.db
 
 # Logs
 npm-debug.log*
