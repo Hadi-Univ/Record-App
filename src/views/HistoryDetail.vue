@@ -183,7 +183,7 @@
     </template>
 
     <!-- ──────────────── Main Content (Tab-based) ──────────────── -->
-    <template v-else-if="!error">
+    <template v-else-if="!showBlockingError">
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
 
         <!-- Tab Navigation Bar -->
@@ -925,6 +925,13 @@ const chatLoading = computed(() => Boolean(chatBucket.value.loadingMessages || c
 const chatSessionsLoading = computed(() => Boolean(chatBucket.value.loadingSessions))
 const chatError = computed(() => String(chatBucket.value.error || ''))
 const chatSecurityWarning = computed(() => String(chatBucket.value.securityWarning || ''))
+const hasLoadedDetailContent = computed(() =>
+  Boolean(detail.value.summary) ||
+  hasTranscriptContent.value ||
+  flashcards.value.length > 0 ||
+  chatMessages.value.length > 0
+)
+const showBlockingError = computed(() => Boolean(error.value) && !hasLoadedDetailContent.value)
 
 const setChatMessages = (messages, { persist = true } = {}) => {
   chatBucket.value.messages = normalizeChatHistoryPayload(messages)
@@ -1662,7 +1669,7 @@ watch(activeTab, (tab) => {
 
 // After load, auto-navigate to Transcript tab when no summary is available
 watch(loading, (isLoading) => {
-  if (!isLoading && !error.value) {
+  if (!isLoading && !showBlockingError.value) {
     if (!detail.value.summary && hasTranscriptContent.value) {
       activeTab.value = 'transcript'
     }
