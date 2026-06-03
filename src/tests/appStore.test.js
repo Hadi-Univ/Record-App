@@ -53,7 +53,7 @@ describe('appStore – initial state', () => {
     expect(state.pipeline.lastError).toBe('')
   })
 
-  it('restores persisted state from localStorage', async () => {
+  it('restores persisted minimal state from localStorage', async () => {
     const saved = {
       token: 'my-token',
       user: { name: 'Alice', email: 'alice@example.com', picture: '' },
@@ -81,14 +81,14 @@ describe('appStore – initial state', () => {
     expect(state.user.name).toBe('Alice')
     expect(state.settings.provider).toBe('openai')
     expect(state.settings.model).toBe('gpt-4o')
-    expect(state.settings.apiKey).toBe('sk-123')
+    expect(state.settings.apiKey).toBe('')
     expect(state.settings.apiUrl).toBe('https://api.example.com')
-    expect(state.historyCache).toEqual([{ folder_name: 'job_1' }])
-    expect(state.historyDetailCache.job_1.summary).toBe('cached summary')
+    expect(state.historyCache).toEqual([])
+    expect(state.historyDetailCache).toEqual({})
     expect(state.pipeline.currentStep).toBe(3)
-    expect(state.pipeline.isProcessing).toBe(true)
+    expect(state.pipeline.isProcessing).toBe(false)
     expect(state.pipeline.folderName).toBe('job_abc')
-    expect(state.pipeline.results.transcription).toBe('Hello')
+    expect(state.pipeline.results).toEqual({})
   })
 
   it('preserves "running" pipeline status on reload', async () => {
@@ -220,14 +220,18 @@ describe('appStore – getBaseUrl()', () => {
 })
 
 describe('appStore – localStorage persistence', () => {
-  it('persists state changes to localStorage reactively', async () => {
+  it('persists only selected state slices', async () => {
     const { state } = await freshStore()
 
     state.token = 'new-token'
+    state.historyCache = [{ folder_name: 'job_1' }]
+    state.pipeline.results = { transcription: 'hidden' }
 
     await vi.waitFor(() => {
       const saved = JSON.parse(localStorage.getItem('audio_pipeline_state_v3') ?? '{}')
       expect(saved.token).toBe('new-token')
+      expect(saved.historyCache).toBeUndefined()
+      expect(saved.pipeline?.results).toBeUndefined()
     })
   })
 })

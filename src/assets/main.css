@@ -256,4 +256,9 @@
   .bg-teal-700 { background-color: var(--color-accent-700) !important; }
   .focus\:ring-teal-400:focus { --tw-ring-color: var(--color-accent-400) !important; }
   .focus\:border-teal-400:focus { border-color: var(--color-accent-400) !important; }
+
+  .touch-target { min-height: 44px; min-width: 44px; }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px) !important; }
+  .h-safe-nav { height: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .pb-safe-nav { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 }

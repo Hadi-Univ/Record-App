@@ -37,7 +37,7 @@
     </nav>
 
     <!-- Page Content -->
-    <main id="main-content" tabindex="-1" class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8 focus:outline-none">
+    <main id="main-content" tabindex="-1" class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8 pb-safe-nav focus:outline-none">
       <router-view v-slot="{ Component }">
         <transition :name="transitionName" mode="out-in">
           <ErrorBoundary>
@@ -50,14 +50,14 @@
     <!-- Mobile Bottom Navigation (when authenticated) -->
     <nav
       v-if="store.state.token"
-      class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-50 shadow-lg"
+      class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-50 shadow-lg pb-safe"
     >
       <div class="flex">
         <router-link
           v-for="link in navLinks"
           :key="link.to"
           :to="link.to"
-          class="motion-interactive flex-1 flex flex-col items-center gap-0.5 py-2 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition"
+          class="motion-interactive touch-target flex-1 flex flex-col items-center gap-0.5 py-2 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition"
           active-class="text-indigo-600"
           exact-active-class="text-indigo-600"
         >
@@ -68,7 +68,7 @@
     </nav>
 
     <!-- Padding for mobile bottom nav -->
-    <div v-if="store.state.token" class="md:hidden h-16" />
+    <div v-if="store.state.token" class="md:hidden h-safe-nav" />
     <BlockingStatusModal
       :open="showHomeBootstrapModal"
       :title="store.state.backendBootstrap.title || t('home.preparingWorkspaceTitle')"
@@ -101,6 +101,8 @@ const isBackNavigation = ref(false)
 const { t } = useI18n()
 const { observeReveals, disconnectReveals } = useScrollReveal()
 let processingLockTimer = null
+const isOnline = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
+const isForeground = ref(true)
 const showHomeBootstrapModal = computed(() =>
   Boolean(store.state.token && route.path === '/' && store.state.backendBootstrap?.active)
 )
@@ -131,6 +133,9 @@ router.beforeEach((to, from) => {
 // offline users are never forcibly logged out by a failed refresh attempt.
 onMounted(async () => {
   window.addEventListener('popstate', handlePopstate)
+  window.addEventListener('online', handleOnline)
+  window.addEventListener('offline', handleOffline)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
   if (
     store.state.authMethod === 'basic' &&
     store.state.refreshToken &&
@@ -149,18 +154,7 @@ onMounted(async () => {
   await nextTick()
   observeReveals(document)
 
-  processingLockTimer = setInterval(async () => {
-    if (!store.state.token) return
-    try {
-      const status = await getProcessingLockStatus({ timeoutMs: 3000, retries: 0 })
-      store.state.processingLock = {
-        locked: Boolean(status?.locked),
-        job_type: status?.job_type || null
-      }
-    } catch {
-      // best-effort polling only
-    }
-  }, 5000)
+  processingLockTimer = setInterval(syncProcessingLock, 5000)
 })
 
 watch(() => route.fullPath, () => {
@@ -169,6 +163,9 @@ watch(() => route.fullPath, () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('popstate', handlePopstate)
+  window.removeEventListener('online', handleOnline)
+  window.removeEventListener('offline', handleOffline)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
   disconnectReveals()
   clearInterval(processingLockTimer)
 })
@@ -180,3 +177,31 @@ const navLinks = computed(() => [
 ])
 
 </script>
+const syncProcessingLock = async () => {
+  if (!store.state.token || !isOnline.value || !isForeground.value) return
+  try {
+    const status = await getProcessingLockStatus({ timeoutMs: 3000, retries: 0 })
+    store.state.processingLock = {
+      locked: Boolean(status?.locked),
+      job_type: status?.job_type || null
+    }
+  } catch {
+    // best-effort polling only
+  }
+}
+
+const handleOnline = () => {
+  isOnline.value = true
+  syncProcessingLock()
+}
+
+const handleOffline = () => {
+  isOnline.value = false
+}
+
+const handleVisibilityChange = () => {
+  isForeground.value = !document.hidden
+  if (isForeground.value) {
+    syncProcessingLock()
+  }
+}

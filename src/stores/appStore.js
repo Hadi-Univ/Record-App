@@ -11,6 +11,35 @@ const savedState = (() => {
   }
 })()
 
+const buildPersistedState = (state) => ({
+  token: state.token,
+  refreshToken: state.refreshToken,
+  tokenExpiresAt: state.tokenExpiresAt,
+  user: state.user,
+  authMethod: state.authMethod,
+  settings: {
+    provider: state.settings.provider,
+    model: state.settings.model,
+    apiUrl: normalizeBaseUrl(state.settings.apiUrl)
+  },
+  pipelineUi: {
+    isOpen: Boolean(state.pipelineUi.isOpen),
+    isMinimized: Boolean(state.pipelineUi.isMinimized)
+  },
+  pipeline: {
+    currentStep: state.pipeline.currentStep,
+    status: state.pipeline.status,
+    folderName: state.pipeline.folderName,
+    fileName: state.pipeline.fileName,
+    currentSubStep: state.pipeline.currentSubStep,
+    startedAt: state.pipeline.startedAt,
+    completedAt: state.pipeline.completedAt,
+    stageTimings: state.pipeline.stageTimings && typeof state.pipeline.stageTimings === 'object'
+      ? state.pipeline.stageTimings
+      : {}
+  }
+})
+
 const resolveInitialApiUrl = () => {
   const persistedApiUrl = normalizeBaseUrl(savedState.settings?.apiUrl)
   return persistedApiUrl || env.apiBaseUrl
@@ -22,27 +51,14 @@ const state = reactive({
   tokenExpiresAt: savedState.tokenExpiresAt || 0,
   user: savedState.user || null,
   authMethod: savedState.authMethod || '',
-  historyCache: Array.isArray(savedState.historyCache) ? savedState.historyCache : [],
-  historySummaryCache:
-    savedState.historySummaryCache && typeof savedState.historySummaryCache === 'object'
-      ? {
-          totalJobs: Number(savedState.historySummaryCache.totalJobs) || 0,
-          completedJobs: Number(savedState.historySummaryCache.completedJobs) || 0,
-          pendingJobs: Number(savedState.historySummaryCache.pendingJobs) || 0,
-          recentJobs: Array.isArray(savedState.historySummaryCache.recentJobs)
-            ? savedState.historySummaryCache.recentJobs
-            : []
-        }
-      : {
-          totalJobs: 0,
-          completedJobs: 0,
-          pendingJobs: 0,
-          recentJobs: []
-        },
-  historyDetailCache:
-    savedState.historyDetailCache && typeof savedState.historyDetailCache === 'object'
-      ? savedState.historyDetailCache
-      : {},
+  historyCache: [],
+  historySummaryCache: {
+    totalJobs: 0,
+    completedJobs: 0,
+    pendingJobs: 0,
+    recentJobs: []
+  },
+  historyDetailCache: {},
   backendBootstrap: {
     active: false,
     title: '',
@@ -53,8 +69,8 @@ const state = reactive({
   settings: {
     provider: savedState.settings?.provider || 'ollama',
     model: savedState.settings?.model || '',
-    apiKey: savedState.settings?.apiKey || '',
-    configAdminToken: savedState.settings?.configAdminToken || '',
+    apiKey: '',
+    configAdminToken: '',
     apiUrl: resolveInitialApiUrl()
   },
   pipelineUi: {
@@ -64,10 +80,10 @@ const state = reactive({
   pipeline: {
     currentStep: savedState.pipeline?.currentStep || 1,
     status: savedState.pipeline?.status || 'idle',
-    isProcessing: Boolean(savedState.pipeline?.isProcessing),
+    isProcessing: false,
     folderName: savedState.pipeline?.folderName || '',
     fileName: savedState.pipeline?.fileName || '',
-    results: savedState.pipeline?.results || {},
+    results: {},
     lastError: savedState.pipeline?.lastError || '',
     currentSubStep: savedState.pipeline?.currentSubStep || '',
     startedAt: savedState.pipeline?.startedAt || null,
@@ -90,10 +106,10 @@ const state = reactive({
 })
 
 watch(
-  state,
-  (newState) => {
+  () => buildPersistedState(state),
+  (persistedState) => {
     try {
-      localStorage.setItem(STATE_KEY, JSON.stringify(newState))
+      localStorage.setItem(STATE_KEY, JSON.stringify(persistedState))
     } catch {
       // localStorage unavailable
     }

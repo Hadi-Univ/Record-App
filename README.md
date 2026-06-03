@@ -66,6 +66,17 @@ npm test
 npm run build
 ```
 
+### Capacitor (Android) baseline setup
+
+```bash
+npm run cap:android
+npm run cap:open:android
+```
+
+This repository now includes `capacitor.config.ts` and baseline Capacitor plugins
+for app lifecycle, network state, preferences, keyboard, filesystem, sharing,
+haptics, and local notifications.
+
 ### Environment configuration
 
 Copy `.env.example` to `.env` and set values as needed:
