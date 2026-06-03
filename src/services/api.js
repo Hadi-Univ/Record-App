@@ -1,5 +1,5 @@
 import { useAppStore } from '../stores/appStore'
-import { requestJson, requestRaw, requestText } from './httpClient'
+import { requestBlob, requestJson, requestRaw, requestText } from './httpClient'
 
 const store = useAppStore()
 const inFlightGetRequests = new Map()
@@ -176,6 +176,18 @@ export async function fetchDownloadJson(folderName, fileType, options = {}) {
     errorLabel: options.errorLabel || 'Download failed',
     timeoutMs: options.timeoutMs ?? 15000,
     retries: options.retries ?? 1,
+    signal: options.signal
+  })
+}
+
+export async function fetchDownloadBlob(folderName, fileType, options = {}) {
+  const endpoint = buildDownloadEndpoint(folderName, fileType, options.langPair || null)
+  return requestBlob(`${store.getBaseUrl()}${endpoint}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    errorLabel: options.errorLabel || 'Download failed',
+    timeoutMs: options.timeoutMs ?? 30000,
+    retries: options.retries ?? 0,
     signal: options.signal
   })
 }

@@ -6,14 +6,18 @@ import {
   createChatbotSession,
   deleteChatbotSession
 } from '../services/chatbotApi'
+import { getOfflineHistoryDetail, updateOfflineChatHistory } from '../services/offlineManifest'
 import { normalizeApiError, getSecurityMessage } from '../services/errorHandler'
 import { useNotifications } from '../composables/useNotifications'
+import { isCapacitorNative } from '../services/authService'
 
 const { notifyWarning, notifyError } = useNotifications()
 
 const state = reactive({
   byHistory: {}
 })
+
+const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false
 
 const ensureHistoryState = (historyId) => {
   const key = String(historyId || '')
@@ -26,10 +30,42 @@ const ensureHistoryState = (historyId) => {
       loadingMessages: false,
       sending: false,
       error: '',
-      securityWarning: ''
+      securityWarning: '',
+      pendingMessages: []
     }
   }
   return state.byHistory[key]
+}
+
+const persistMessages = async (historyId) => {
+  const bucket = ensureHistoryState(historyId)
+  await updateOfflineChatHistory(historyId, bucket.messages)
+}
+
+const applyOfflineMessages = async (historyId) => {
+  const bucket = ensureHistoryState(historyId)
+  const offlineDetail = await getOfflineHistoryDetail(historyId)
+  if (Array.isArray(offlineDetail?.chatMessages) && offlineDetail.chatMessages.length) {
+    bucket.messages = offlineDetail.chatMessages
+    if (!bucket.sessions.length) {
+      bucket.sessions = [{ session_id: 'offline-session', title: 'Offline Conversation' }]
+    }
+    if (!bucket.activeSessionId) {
+      bucket.activeSessionId = bucket.sessions[0]?.session_id || 'offline-session'
+    }
+    return true
+  }
+  return false
+}
+
+const flushPendingMessages = async (historyId) => {
+  const bucket = ensureHistoryState(historyId)
+  if (!bucket.pendingMessages.length || isOffline()) return
+  const queued = [...bucket.pendingMessages]
+  bucket.pendingMessages = []
+  for (const message of queued) {
+    await sendMessage(historyId, message, { sessionId: bucket.activeSessionId || undefined })
+  }
 }
 
 const setActiveSession = async (historyId, sessionId) => {
@@ -45,8 +81,12 @@ const setActiveSession = async (historyId, sessionId) => {
   try {
     const detail = await fetchChatbotSession(bucket.activeSessionId)
     bucket.messages = Array.isArray(detail.messages) ? detail.messages : []
+    await persistMessages(historyId)
   } catch (error) {
-    bucket.error = error.message || 'Failed to load chat messages.'
+    const restored = await applyOfflineMessages(historyId)
+    if (!restored) {
+      bucket.error = error.message || 'Failed to load chat messages.'
+    }
   } finally {
     bucket.loadingMessages = false
   }
@@ -58,6 +98,7 @@ const loadSessions = async (historyId, { autoSelect = true } = {}) => {
   bucket.error = ''
   bucket.securityWarning = ''
   try {
+    await flushPendingMessages(historyId)
     const payload = await fetchChatbotSessions(historyId)
     bucket.sessions = Array.isArray(payload.sessions) ? payload.sessions : []
     if (autoSelect) {
@@ -65,7 +106,10 @@ const loadSessions = async (historyId, { autoSelect = true } = {}) => {
       await setActiveSession(historyId, nextId)
     }
   } catch (error) {
-    bucket.error = error.message || 'Failed to load chat sessions.'
+    const restored = await applyOfflineMessages(historyId)
+    if (!restored) {
+      bucket.error = error.message || 'Failed to load chat sessions.'
+    }
   } finally {
     bucket.loadingSessions = false
   }
@@ -83,9 +127,16 @@ const sendMessage = async (historyId, question, options = {}) => {
     metadata: {}
   }
   bucket.messages = [...bucket.messages, optimisticMessage]
+  await persistMessages(historyId)
   bucket.sending = true
   bucket.error = ''
   bucket.securityWarning = ''
+  if (isOffline()) {
+    bucket.pendingMessages = [...bucket.pendingMessages, trimmed]
+    bucket.sending = false
+    bucket.error = ''
+    return null
+  }
   try {
     const response = await sendChatbotMessage(historyId, {
       question: trimmed,
@@ -95,10 +146,12 @@ const sendMessage = async (historyId, question, options = {}) => {
     bucket.activeSessionId = response.session_id || bucket.activeSessionId
     const nextMessages = response?.session?.messages
     bucket.messages = Array.isArray(nextMessages) ? nextMessages : bucket.messages
+    await persistMessages(historyId)
     await loadSessions(historyId, { autoSelect: false })
     return response
   } catch (error) {
     bucket.messages = bucket.messages.filter((item) => item.message_id !== optimisticMessage.message_id)
+    await persistMessages(historyId)
     const normalized = normalizeApiError({
       payload: error?.payload || error?.detail || null,
       status: Number(error?.status || 0),
@@ -149,3 +202,12 @@ export const useChatbotStore = () => ({
   removeSession,
   createSession
 })
+
+if (isCapacitorNative() && typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    const historyIds = Object.keys(state.byHistory)
+    historyIds.forEach((historyId) => {
+      flushPendingMessages(historyId).catch(() => {})
+    })
+  })
+}

@@ -682,9 +682,10 @@ import { ref, reactive, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
-import { getJob, createDownloadObjectUrl, downloadArtifact, fetchDownloadText, fetchDownloadJson, summarizeJob, visualizeJob, translateJob, saveTranscript, generateFlashcards, createShareLink, revokeShareLink, fetchHistoryArtifactsParallel, GET_CACHE_TTL_MS } from '../services/api'
+import { getJob, createDownloadObjectUrl, downloadArtifact, fetchDownloadText, fetchDownloadJson, fetchDownloadBlob, summarizeJob, visualizeJob, translateJob, saveTranscript, generateFlashcards, createShareLink, revokeShareLink, GET_CACHE_TTL_MS } from '../services/api'
 import { normalizeFlashcardsPayload, normalizeChatHistoryPayload } from '../services/historyArtifacts'
 import { createRequestCanceller } from '../services/httpClient'
+import { getOfflineAssetDataUrl, getOfflineHistoryDetail, syncHistoryOfflinePackage, updateOfflineChatHistory } from '../services/offlineManifest'
 import { useAppStore } from '../stores/appStore'
 import { useChatbotStore } from '../stores/chatbotStore'
 import { isCapacitorNative } from '../services/authService'
@@ -924,6 +925,13 @@ const chatLoading = computed(() => Boolean(chatBucket.value.loadingMessages || c
 const chatSessionsLoading = computed(() => Boolean(chatBucket.value.loadingSessions))
 const chatError = computed(() => String(chatBucket.value.error || ''))
 const chatSecurityWarning = computed(() => String(chatBucket.value.securityWarning || ''))
+
+const setChatMessages = (messages, { persist = true } = {}) => {
+  chatBucket.value.messages = normalizeChatHistoryPayload(messages)
+  if (persist && folderName.value) {
+    updateOfflineChatHistory(folderName.value, chatBucket.value.messages).catch(() => {})
+  }
+}
 
 const sendChat = async (question) => {
   const clean = String(question || '').trim()
@@ -1226,12 +1234,15 @@ const hasDetailContent = (payload) => {
   )
 }
 
-const getCachedDetail = (folder) => {
+const getCachedDetail = async (folder) => {
   if (!folder) return null
   const cache = store.state.historyDetailCache
-  if (!cache || typeof cache !== 'object') return null
-  const cached = cache[folder]
-  return hasDetailContent(cached) ? cached : null
+  if (cache && typeof cache === 'object') {
+    const cached = cache[folder]
+    if (hasDetailContent(cached)) return cached
+  }
+  const offlineDetail = await getOfflineHistoryDetail(folder)
+  return hasDetailContent(offlineDetail) ? offlineDetail : null
 }
 
 const applyCachedDetail = (cached) => {
@@ -1254,7 +1265,7 @@ const applyCachedDetail = (cached) => {
   currentCardIndex.value = 0
   cardFlipped.value = false
   flashcardsError.value = ''
-  chatMessages.value = normalizeChatHistoryPayload(cached.chatMessages)
+  setChatMessages(cached.chatMessages, { persist: false })
   chatError.value = ''
   return true
 }
@@ -1275,6 +1286,7 @@ const saveCachedDetail = () => {
     ...(store.state.historyDetailCache || {}),
     [folderName.value]: payload
   }
+  updateOfflineChatHistory(folderName.value, payload.chatMessages).catch(() => {})
 }
 
 // Fetch Logic
@@ -1286,7 +1298,7 @@ const loadDetail = async () => {
   error.value = ''
   resetDetailState()
   resetActionAssetUrls()
-  const cached = getCachedDetail(folderName.value)
+  const cached = await getCachedDetail(folderName.value)
   if (cached) applyCachedDetail(cached)
   if (nativeApp && typeof navigator !== 'undefined' && navigator.onLine === false) {
     if (cached) {
@@ -1304,64 +1316,58 @@ const loadDetail = async () => {
     }
     const jobDetail = await getJob(folderName.value, { signal, cacheTtlMs: GET_CACHE_TTL_MS.JOB })
     manifest.value = jobDetail
-    const files = jobDetail?.files || {}
 
     shareProgress.value = 0
-    const artifacts = await fetchHistoryArtifactsParallel(
-      folderName.value,
-      [
-        files.summary_txt ? { name: 'summary_txt', type: 'text' } : null,
-        files.transcript_json ? { name: 'transcript_json', type: 'json' } : null,
-        files.transcript_txt ? { name: 'transcript_txt', type: 'text' } : null,
-        files.flashcards_json ? { name: 'flashcards_json', type: 'json' } : null,
-        files.chatbot_json ? { name: 'chatbot_json', type: 'json' } : null
-      ].filter(Boolean),
+    await syncHistoryOfflinePackage(
+      jobDetail,
       {
-        signal,
-        onProgress: ({ percent }) => {
-          shareProgress.value = percent
+        fetchText: (artifactKey, options = {}) =>
+          fetchDownloadText(folderName.value, artifactKey, {
+            ...options,
+            signal,
+            errorLabel: `Failed to load ${artifactKey}`
+          }),
+        fetchJson: (artifactKey, options = {}) =>
+          fetchDownloadJson(folderName.value, artifactKey, {
+            ...options,
+            signal,
+            errorLabel: `Failed to load ${artifactKey}`
+          }),
+        fetchBlob: (artifactKey, options = {}) =>
+          fetchDownloadBlob(folderName.value, artifactKey, {
+            ...options,
+            signal,
+            errorLabel: `Failed to load ${artifactKey}`
+          })
+      },
+      {
+        onProgress: ({ status }) => {
+          if (status === 'updated' || status === 'cached') {
+            shareProgress.value = Math.min(100, shareProgress.value + 10)
+          }
         }
       }
     )
-    const summaryResult = artifacts.summary_txt || { status: 'fulfilled', data: null }
-    const transcriptJsonResult = artifacts.transcript_json || { status: 'fulfilled', data: null }
-    const transcriptTextResult = artifacts.transcript_txt || { status: 'fulfilled', data: null }
-    const flashcardsResult = artifacts.flashcards_json || { status: 'fulfilled', data: null }
-    const chatbotHistoryResult = artifacts.chatbot_json || { status: 'fulfilled', data: null }
+    const offlineDetail = await getOfflineHistoryDetail(folderName.value)
 
-    if (summaryResult.status === 'fulfilled' && typeof summaryResult.data === 'string') {
-      detail.value.summary = summaryResult.data
-    } else if (!cached?.summary) {
-      detail.value.summary = ''
-    }
+    detail.value.summary = typeof offlineDetail?.summary === 'string'
+      ? offlineDetail.summary
+      : (cached?.summary || '')
 
-    if (transcriptJsonResult.status === 'fulfilled' && Array.isArray(transcriptJsonResult.data)) {
-      transcriptData.value = transcriptJsonResult.data.map((item, index) => ({ ...item, _id: index }))
-    } else if (!Array.isArray(cached?.transcriptData) || !cached.transcriptData.length) {
-      transcriptData.value = []
-    }
+    transcriptData.value = Array.isArray(offlineDetail?.transcriptData)
+      ? offlineDetail.transcriptData.map((item, index) => ({ ...item, _id: index }))
+      : (Array.isArray(cached?.transcriptData)
+          ? cached.transcriptData.map((item, index) => ({ ...item, _id: index }))
+          : [])
 
-    if (transcriptTextResult.status === 'fulfilled' && typeof transcriptTextResult.data === 'string') {
-      detail.value.transcript = transcriptTextResult.data
-    } else if (!cached?.transcript) {
-      detail.value.transcript = ''
-    }
+    detail.value.transcript = typeof offlineDetail?.transcript === 'string'
+      ? offlineDetail.transcript
+      : (cached?.transcript || '')
 
-    if (flashcardsResult.status === 'fulfilled') {
-      flashcards.value = normalizeFlashcardsPayload(flashcardsResult.data)
-      currentCardIndex.value = 0
-      cardFlipped.value = false
-    } else if (!Array.isArray(cached?.flashcards) || !cached.flashcards.length) {
-      flashcards.value = []
-      currentCardIndex.value = 0
-      cardFlipped.value = false
-    }
-
-    if (chatbotHistoryResult.status === 'fulfilled') {
-      chatMessages.value = normalizeChatHistoryPayload(chatbotHistoryResult.data)
-    } else if (!Array.isArray(cached?.chatMessages) || !cached.chatMessages.length) {
-      chatMessages.value = []
-    }
+    flashcards.value = normalizeFlashcardsPayload(offlineDetail?.flashcards || cached?.flashcards)
+    currentCardIndex.value = 0
+    cardFlipped.value = false
+    setChatMessages(offlineDetail?.chatMessages || cached?.chatMessages || [])
 
     if (transcriptData.value.length) initDashboard()
     else resetDashboard()
@@ -1517,16 +1523,25 @@ const refreshActionAssetUrls = async () => {
   resetActionAssetUrls()
   if (activeTab.value !== 'actions' || !folderName.value) return
 
-  const audioPromise = createDownloadObjectUrl(folderName.value, 'audio', {
-    errorLabel: 'Failed to load audio',
-    timeoutMs: 30000
-  })
-  const imagePromise = manifest.value?.files?.timeline_png
-    ? createDownloadObjectUrl(folderName.value, 'image', {
-        errorLabel: 'Failed to load visualization',
+  const cachedAudioUrl = await getOfflineAssetDataUrl(folderName.value, 'audio')
+  const cachedImageUrl = await getOfflineAssetDataUrl(folderName.value, 'image')
+
+  const audioPromise = cachedAudioUrl
+    ? Promise.resolve(cachedAudioUrl)
+    : createDownloadObjectUrl(folderName.value, 'audio', {
+        errorLabel: 'Failed to load audio',
         timeoutMs: 30000
       })
-    : Promise.resolve('')
+  const imagePromise = cachedImageUrl
+    ? Promise.resolve(cachedImageUrl)
+    : (
+      manifest.value?.files?.timeline_png
+        ? createDownloadObjectUrl(folderName.value, 'image', {
+            errorLabel: 'Failed to load visualization',
+            timeoutMs: 30000
+          })
+        : Promise.resolve('')
+    )
 
   const [audioResult, imageResult] = await Promise.allSettled([audioPromise, imagePromise])
   if (requestId !== actionAssetRequestId) {
@@ -1561,6 +1576,28 @@ const switchToTranslation = async (langPair) => {
 
   viewLoading.value = true
   const signal = requestCanceller.nextSignal('translation-switch')
+  const offlineTranslated = await getOfflineHistoryDetail(folderName.value, { langPair })
+  if (
+    offlineTranslated &&
+    (
+      offlineTranslated.summary ||
+      offlineTranslated.transcript ||
+      (Array.isArray(offlineTranslated.transcriptData) && offlineTranslated.transcriptData.length)
+    )
+  ) {
+    detail.value.summary = offlineTranslated.summary || originalDetail.value.summary
+    detail.value.transcript = offlineTranslated.transcript || originalDetail.value.transcript
+    if (Array.isArray(offlineTranslated.transcriptData) && offlineTranslated.transcriptData.length) {
+      transcriptData.value = offlineTranslated.transcriptData.map((item, i) => ({ ...item, _id: i }))
+      initDashboard()
+    } else {
+      restoreOriginalTranscript()
+    }
+    viewLoading.value = false
+    if (nativeApp && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return
+    }
+  }
   const translations = manifest.value?.translations?.[langPair] || {}
   try {
     const [summaryResult, jsonResult, transcriptResult] = await Promise.allSettled([

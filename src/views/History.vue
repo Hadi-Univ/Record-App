@@ -7,6 +7,24 @@
           <p class="text-sm text-slate-500 mt-1">{{ t('history.subtitle') }}</p>
         </div>
         <div class="flex items-center gap-2">
+          <span
+            class="px-2 py-1 rounded-lg text-xs font-semibold"
+            :class="networkOnline ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'"
+          >
+            {{ networkOnline ? 'Synced' : 'Offline Mode' }}
+          </span>
+          <span
+            v-if="syncingOfflineCache"
+            class="px-2 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"
+          >
+            Syncing
+          </span>
+          <span
+            v-else-if="storageStats.downloadedHistories < storageStats.totalHistories"
+            class="px-2 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200"
+          >
+            Update Available
+          </span>
           <button
             v-if="jobs.length"
             @click="toggleSelectMode"
@@ -225,6 +243,7 @@ import {
   getJob,
   fetchDownloadText,
   fetchDownloadJson,
+  fetchDownloadBlob,
   summarizeJob,
   visualizeJob,
   deleteJobs,
@@ -233,6 +252,13 @@ import {
 } from '../services/api.js'
 import { normalizeFlashcardsPayload, normalizeChatHistoryPayload } from '../services/historyArtifacts'
 import { normalizeHistoryResponse } from '../services/historyResponse.js'
+import {
+  getOfflineHistoryDetail,
+  getOfflineHistoryList,
+  getOfflineStorageStats,
+  removeOfflineHistoryPackage,
+  syncHistoryOfflinePackage
+} from '../services/offlineManifest.js'
 import { useAppStore } from '../stores/appStore'
 import { isCapacitorNative } from '../services/authService'
 import { useI18n } from '../i18n/index.js'
@@ -248,6 +274,14 @@ const loading = ref(false)
 const error = ref('')
 const nativeApp = isCapacitorNative()
 const syncingOfflineCache = ref(false)
+const networkOnline = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
+const storageStats = ref({
+  totalHistories: 0,
+  downloadedHistories: 0,
+  syncingHistories: 0,
+  partialHistories: 0,
+  storageBytes: 0
+})
 const reRunning = reactive({})
 const renamePending = reactive({})
 const editingHistoryId = ref('')
@@ -312,6 +346,7 @@ const executeDelete = async () => {
   error.value = ''
   try {
     await deleteJobs(names)
+    await Promise.allSettled(names.map(name => removeOfflineHistoryPackage(name)))
     // Remove deleted entries from local state immediately
     jobs.value = jobs.value.filter(j => !names.includes(j.folder_name))
     syncHistoryCaches()
@@ -414,14 +449,20 @@ const loadHistory = async () => {
     jobs.value = normalized.jobs
     store.state.historyCache = normalized.jobs
     store.state.historySummaryCache = normalized.summary
-    await syncHistoryDetailsForOffline(normalized.jobs)
+    syncHistoryDetailsForOffline(normalized.jobs)
   } catch (err) {
     const cached = Array.isArray(store.state.historyCache) ? store.state.historyCache : []
     if (cached.length) {
       jobs.value = [...cached]
       error.value = t('history.offlineMode')
     } else {
-      error.value = err.message
+      const offlineJobs = await getOfflineHistoryList()
+      if (offlineJobs.length) {
+        jobs.value = normalizeHistoryResponse({ jobs: offlineJobs }).jobs
+        error.value = t('history.offlineMode')
+      } else {
+        error.value = err.message
+      }
     }
   } finally {
     loading.value = false
@@ -463,34 +504,43 @@ const syncSingleHistoryDetail = async (job) => {
   }
 
   const jobDetail = await getJob(folderName, { cacheTtlMs: 0 })
-  const files = jobDetail?.files || {}
-
-  const [summaryResult, transcriptJsonResult, transcriptTextResult, flashcardsResult, chatbotHistoryResult] = await Promise.allSettled([
-    files.summary_txt ? fetchDownloadText(folderName, 'summary_txt', { errorLabel: 'Failed to sync summary' }) : Promise.resolve(''),
-    files.transcript_json ? fetchDownloadJson(folderName, 'transcript_json', { errorLabel: 'Failed to sync transcript JSON' }) : Promise.resolve([]),
-    files.transcript_txt ? fetchDownloadText(folderName, 'transcript_txt', { errorLabel: 'Failed to sync transcript text' }) : Promise.resolve(''),
-    files.flashcards_json ? fetchDownloadJson(folderName, 'flashcards_json', { errorLabel: 'Failed to sync flashcards history' }) : Promise.resolve([]),
-    files.chatbot_json ? fetchDownloadJson(folderName, 'chatbot_json', { errorLabel: 'Failed to sync chatbot history' }) : Promise.resolve([])
-  ])
+  await syncHistoryOfflinePackage(
+    jobDetail,
+    {
+      fetchText: (artifactKey, options = {}) =>
+        fetchDownloadText(folderName, artifactKey, {
+          ...options,
+          errorLabel: `Failed to sync ${artifactKey}`
+        }),
+      fetchJson: (artifactKey, options = {}) =>
+        fetchDownloadJson(folderName, artifactKey, {
+          ...options,
+          errorLabel: `Failed to sync ${artifactKey}`
+        }),
+      fetchBlob: (artifactKey, options = {}) =>
+        fetchDownloadBlob(folderName, artifactKey, {
+          ...options,
+          errorLabel: `Failed to sync ${artifactKey}`
+        })
+    }
+  )
+  const offlineDetail = await getOfflineHistoryDetail(folderName)
 
   const payload = {
-    summary: summaryResult.status === 'fulfilled' && typeof summaryResult.value === 'string' ? summaryResult.value : (existing?.summary || ''),
-    transcript: transcriptTextResult.status === 'fulfilled' && typeof transcriptTextResult.value === 'string' ? transcriptTextResult.value : (existing?.transcript || ''),
-    transcriptData: transcriptJsonResult.status === 'fulfilled' && Array.isArray(transcriptJsonResult.value)
-      ? transcriptJsonResult.value
+    summary: typeof offlineDetail?.summary === 'string' ? offlineDetail.summary : (existing?.summary || ''),
+    transcript: typeof offlineDetail?.transcript === 'string' ? offlineDetail.transcript : (existing?.transcript || ''),
+    transcriptData: Array.isArray(offlineDetail?.transcriptData)
+      ? offlineDetail.transcriptData
       : (Array.isArray(existing?.transcriptData) ? existing.transcriptData : []),
-    flashcards: flashcardsResult.status === 'fulfilled'
-      ? normalizeFlashcardsPayload(flashcardsResult.value)
-      : normalizeFlashcardsPayload(existing?.flashcards),
-    chatMessages: chatbotHistoryResult.status === 'fulfilled'
-      ? normalizeChatHistoryPayload(chatbotHistoryResult.value)
-      : normalizeChatHistoryPayload(existing?.chatMessages),
-    manifest: jobDetail || existing?.manifest || null,
+    flashcards: normalizeFlashcardsPayload(offlineDetail?.flashcards || existing?.flashcards),
+    chatMessages: normalizeChatHistoryPayload(offlineDetail?.chatMessages || existing?.chatMessages),
+    manifest: offlineDetail?.manifest || jobDetail || existing?.manifest || null,
     manifestUpdatedAt,
     updatedAt: new Date().toISOString()
   }
 
   saveHistoryDetailCache(folderName, payload)
+  storageStats.value = await getOfflineStorageStats()
 }
 
 const syncHistoryDetailsForOffline = async (historyJobs = []) => {
@@ -507,11 +557,19 @@ const syncHistoryDetailsForOffline = async (historyJobs = []) => {
     // Keep history page usable if background sync fails.
   } finally {
     syncingOfflineCache.value = false
+    storageStats.value = await getOfflineStorageStats()
   }
 }
 
 const handleOnlineSync = () => {
-  syncHistoryDetailsForOffline(jobs.value)
+  networkOnline.value = true
+  if (!syncingOfflineCache.value) {
+    syncHistoryDetailsForOffline(jobs.value)
+  }
+}
+
+const handleOfflineState = () => {
+  networkOnline.value = false
 }
 
 const openJobDetail = (folderName) => {
@@ -541,10 +599,13 @@ const reRunJob = async (job) => {
 
 onMounted(() => {
   loadHistory()
+  getOfflineStorageStats().then(stats => { storageStats.value = stats }).catch(() => {})
   window.addEventListener('online', handleOnlineSync)
+  window.addEventListener('offline', handleOfflineState)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('online', handleOnlineSync)
+  window.removeEventListener('offline', handleOfflineState)
 })
 </script>
