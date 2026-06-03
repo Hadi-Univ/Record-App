@@ -978,9 +978,82 @@ const selectedLangPair = ref(null)
 const viewLoading = ref(false)
 const viewError = ref('')
 
-// Backup of original (untranslated) content, populated after loadDetail
-const originalDetail = ref({ transcript: '', summary: '' })
-const originalTranscriptData = ref([])
+const HISTORY_DETAIL_UI_STATE_KEY = 'history_detail_ui_state_v1'
+const activeTranslationRequestId = ref(0)
+
+const cloneTranscriptList = (items) => (
+  Array.isArray(items)
+    ? items.map((item, index) => ({ ...(item && typeof item === 'object' ? item : {}), _id: index }))
+    : []
+)
+
+const cloneContentVersion = (content = {}) => ({
+  summary: typeof content?.summary === 'string' ? content.summary : '',
+  transcript: typeof content?.transcript === 'string' ? content.transcript : '',
+  transcriptData: cloneTranscriptList(content?.transcriptData)
+})
+
+const hasContentVersionData = (content = {}) => (
+  Boolean(
+    (typeof content?.summary === 'string' && content.summary.trim()) ||
+    (typeof content?.transcript === 'string' && content.transcript.trim()) ||
+    (Array.isArray(content?.transcriptData) && content.transcriptData.length)
+  )
+)
+
+const createEmptyContentVersions = () => ({
+  original: cloneContentVersion(),
+  translations: {}
+})
+
+const contentVersions = ref(createEmptyContentVersions())
+
+const mergeContentVersion = (current = {}, incoming = {}) => {
+  const base = cloneContentVersion(current)
+  const next = cloneContentVersion(incoming)
+  return {
+    summary: typeof next.summary === 'string' && next.summary.trim().length > 0 ? next.summary : base.summary,
+    transcript: typeof next.transcript === 'string' && next.transcript.trim().length > 0 ? next.transcript : base.transcript,
+    transcriptData: next.transcriptData.length > 0 ? next.transcriptData : base.transcriptData
+  }
+}
+
+const getUiStateMap = () => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HISTORY_DETAIL_UI_STATE_KEY) || '{}')
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+const saveUiState = () => {
+  if (!folderName.value) return
+  try {
+    const map = getUiStateMap()
+    map[folderName.value] = {
+      activeTab: activeTab.value,
+      activeTranscriptTab: activeTranscriptTab.value,
+      selectedLangPair: selectedLangPair.value,
+      savedAt: Date.now()
+    }
+    localStorage.setItem(HISTORY_DETAIL_UI_STATE_KEY, JSON.stringify(map))
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+const restoreUiState = () => {
+  if (!folderName.value) return
+  const map = getUiStateMap()
+  const state = map[folderName.value]
+  if (!state || typeof state !== 'object') return
+  const allowedTabs = ['summary', 'transcript', 'ai', 'actions']
+  const allowedTranscriptTabs = ['editor', 'raw']
+  if (allowedTabs.includes(state.activeTab)) activeTab.value = state.activeTab
+  if (allowedTranscriptTabs.includes(state.activeTranscriptTab)) activeTranscriptTab.value = state.activeTranscriptTab
+  selectedLangPair.value = typeof state.selectedLangPair === 'string' ? state.selectedLangPair : null
+}
 
 // Derive a user-friendly label from a lang_pair token (e.g. "indonesian_to_english" → "Indonesian → English")
 const langPairLabel = (langPair) => {
@@ -1151,10 +1224,14 @@ const persistTranscriptChanges = async () => {
     if (editVersionSnapshot === transcriptEditVersion.value) {
       transcriptDirty.value = false
     }
-    saveCachedDetail()
     if (!selectedLangPair.value) {
-      originalTranscriptData.value = transcriptData.value.map(item => ({ ...item }))
+      contentVersions.value.original = mergeContentVersion(contentVersions.value.original, {
+        transcriptData: transcriptData.value,
+        transcript: detail.value.transcript,
+        summary: detail.value.summary
+      })
     }
+    saveCachedDetail()
   } catch (err) {
     transcriptSaveError.value = err.message || 'Failed to save transcript changes.'
   } finally {
@@ -1187,7 +1264,18 @@ const flushTranscriptSave = async () => {
 }
 
 const restoreOriginalTranscript = () => {
-  transcriptData.value = originalTranscriptData.value.map(item => ({ ...item }))
+  transcriptData.value = cloneTranscriptList(contentVersions.value.original.transcriptData)
+  if (transcriptData.value.length) initDashboard()
+  else resetDashboard()
+}
+
+const applyContentVersionToView = (content) => {
+  const normalized = cloneContentVersion(content)
+  detail.value = {
+    summary: normalized.summary,
+    transcript: normalized.transcript
+  }
+  transcriptData.value = normalized.transcriptData
   if (transcriptData.value.length) initDashboard()
   else resetDashboard()
 }
@@ -1201,8 +1289,7 @@ const resetDetailState = () => {
   resetDashboard()
   selectedLangPair.value = null
   viewError.value = ''
-  originalDetail.value = { transcript: '', summary: '' }
-  originalTranscriptData.value = []
+  contentVersions.value = createEmptyContentVersions()
   // Reset flashcard state
   flashcards.value = []
   currentCardIndex.value = 0
